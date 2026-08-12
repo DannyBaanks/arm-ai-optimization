@@ -1,5 +1,10 @@
 [
   {"prompt": "Summarize the role of CPU inference in edge AI."},
   {"prompt": "Explain one benefit of quantization for Arm deployment."},
-  {"prompt": "Describe a reproducible latency benchmark."}
+  {"prompt": "Describe a reproducible latency benchmark."},
+  {"prompt": "Explain why wall-clock time and per-request latency can move in opposite directions under concurrency."},
+  {"prompt": "Name one Arm64 server platform used for cloud AI inference."},
+  {"prompt": "Explain what a persistent worker pool avoids compared to spawning one process per request."},
+  {"prompt": "Describe one tradeoff of running a 4-bit quantized model versus full precision."},
+  {"prompt": "Explain why signed evidence with a content hash matters for a benchmark result."}
 ]
