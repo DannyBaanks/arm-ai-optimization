@@ -31,7 +31,8 @@ def _build_adapter(args: argparse.Namespace) -> InferenceAdapter:
     return HttpAdapter(HttpAdapterConfig(
         url=args.http_url,
         model=args.http_model,
-        name=f"http:{args.http_model}",
+        name=f"http:{args.http_backend}:{args.http_model}",
+        backend=args.http_backend,
         num_thread=args.http_num_thread,
     ))
 
@@ -51,7 +52,9 @@ def main() -> int:
     parser.add_argument("--adapter", choices=("demo", "http"), default="demo")
     parser.add_argument("--http-url", default=None,
                          help="base URL of an Ollama-compatible runtime, e.g. http://localhost:11434")
-    parser.add_argument("--http-model", default=None)
+    parser.add_argument("--http-model", default=None,
+                         help="model name (Ollama) or a label (llama-server; not sent to the server)")
+    parser.add_argument("--http-backend", choices=("ollama", "llama_server"), default="ollama")
     parser.add_argument("--http-num-thread", type=int, default=None,
                          help="CPU threads per request; set to cores // workers to avoid "
                               "concurrent requests oversubscribing the same cores")

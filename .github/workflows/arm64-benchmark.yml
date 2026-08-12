@@ -11,7 +11,7 @@ jobs:
     # repos. No cloud account, no SSH, no credit card -- this job is the
     # "real Arm64 host" the harness's own README asks for.
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Confirm we are actually on Arm64
         run: |
@@ -84,17 +84,61 @@ jobs:
             --workload-id demo-arm64-ci-parallel4-thread-capped \
             | tee evidence/arm64_capped_stdout.json
 
+      - name: Build llama-server from source
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp
+          cmake -B llama.cpp/build -S llama.cpp -DCMAKE_BUILD_TYPE=Release
+          cmake --build llama.cpp/build -j"$(nproc)" --target llama-server
+
+      - name: Download a small GGUF model
+        run: |
+          curl -fL -o model.gguf \
+            https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+
+      - name: Start llama-server (4 parallel slots, 1 thread each -- fits the 4 cores exactly)
+        run: |
+          ./llama.cpp/build/bin/llama-server -m model.gguf --host 127.0.0.1 --port 8081 \
+            -c 4096 --parallel 4 -t 1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8081/health > /dev/null; then
+              echo "llama-server is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::llama-server never became ready"
+          exit 1
+
+      - name: Run the benchmark against llama-server
+        # Unlike Ollama on this box, llama-server's --parallel slots are
+        # explicit and battle-tested for concurrent serving. This is the
+        # real test of whether the machine has any concurrency to give at
+        # all, now that the runtime itself isn't in question.
+        run: |
+          python -m armopt.cli \
+            --adapter http --http-backend llama_server --http-url http://127.0.0.1:8081 \
+            --http-model qwen2.5-0.5b-instruct-q4_k_m \
+            --workload-file workloads/demo.json \
+            --workers 4 --repeats 3 --mode both \
+            --evidence evidence/arm64_llama_server.json \
+            --workload-id demo-arm64-ci-llama-server \
+            | tee evidence/arm64_llama_server_stdout.json
+
       - name: Publish results to the job summary
         run: |
           echo "## Arm64 benchmark evidence" >> "$GITHUB_STEP_SUMMARY"
-          echo "Runner architecture: \`$(uname -m)\`, \`$(nproc)\` vCPUs, OLLAMA_NUM_PARALLEL=4" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Default per-request threading" >> "$GITHUB_STEP_SUMMARY"
+          echo "Runner architecture: \`$(uname -m)\`, \`$(nproc)\` vCPUs" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4)" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat evidence/arm64_naive_stdout.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "### Capped per-request threading (num_thread=1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Ollama, capped per-request threading (num_thread=1)" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat evidence/arm64_capped_stdout.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "### llama-server, --parallel 4 -t 1" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/arm64_llama_server_stdout.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
@@ -103,3 +147,4 @@ jobs:
           path: |
             evidence/arm64_naive.json
             evidence/arm64_capped.json
+            evidence/arm64_llama_server.json
