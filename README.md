@@ -124,6 +124,31 @@ different HTTP runtimes — one that didn't deliver concurrency on this box
 and one that did, both documented with real numbers instead of picking the
 one that looked better.
 
+## Picking a backend from measured evidence
+
+`CostLatencyScheduler` (`armopt.scheduler`) scores candidate backends on
+latency, cost, and throughput -- but scoring only means something if the
+inputs are real and the units are comparable:
+
+```bash
+python -m armopt.select \
+  --evidence evidence/ollama_run.json --evidence evidence/llama_server_run.json \
+  --cost-per-1k-tokens 0.0 --cost-per-1k-tokens 0.0 \
+  --latency-weight 1 --cost-weight 1 --throughput-weight 1
+```
+
+`armopt.select` builds one `BackendProfile` per evidence file from its
+*measured* dataflow figures (`mean_latency_ms`, `tokens_per_second`) --
+the same evidence `armopt.cli --evidence` already writes, not fabricated
+numbers. The scheduler then min-max normalizes latency/cost/throughput
+across the candidate set before weighting them: raw milliseconds and raw
+dollars live on unrelated scales, and summing them unnormalized lets
+whichever metric has the larger raw magnitude dominate the score
+regardless of the weights (`test_high_cost_weight_actually_wins_when_units_differ_wildly`
+in `test_scheduler.py` is the regression test for that bug). CI runs this
+after every benchmark, so the job summary always ends with a concrete
+"here's what we'd actually deploy" line, not just two numbers side by side.
+
 ## Arm64 CI evidence
 
 `.github/workflows/arm64-benchmark.yml` runs the full benchmark on a

@@ -124,6 +124,16 @@ jobs:
             --workload-id demo-arm64-ci-llama-server \
             | tee evidence/arm64_llama_server_stdout.json
 
+      - name: Ask the scheduler which measured backend it would deploy
+        # Closes the loop: benchmark -> evidence -> scheduler decision.
+        # CostLatencyScheduler reads the real dataflow figures from the
+        # evidence files above -- no synthetic profiles.
+        run: |
+          python -m armopt.select \
+            --evidence evidence/arm64_naive.json \
+            --evidence evidence/arm64_llama_server.json \
+            | tee evidence/selection.json
+
       - name: Publish results to the job summary
         run: |
           echo "## Arm64 benchmark evidence" >> "$GITHUB_STEP_SUMMARY"
@@ -140,6 +150,10 @@ jobs:
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat evidence/arm64_llama_server_stdout.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "### Scheduler decision (from the two evidence files above)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/selection.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -148,3 +162,4 @@ jobs:
             evidence/arm64_naive.json
             evidence/arm64_capped.json
             evidence/arm64_llama_server.json
+            evidence/selection.json

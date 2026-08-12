@@ -43,11 +43,29 @@ class CostLatencyScheduler:
         self.cost_weight = cost_weight
         self.throughput_weight = throughput_weight
 
+    @staticmethod
+    def _normalized(value: float, values: list[float]) -> float:
+        """Min-max normalize to [0, 1] across the candidate set.
+
+        Raw latency (ms), cost (dollars), and throughput (tokens/s) live on
+        unrelated scales -- summing them directly lets whichever metric
+        happens to have the largest raw magnitude dominate the score
+        regardless of the weights. Normalizing relative to the other
+        candidates being compared makes the weights mean what they claim to.
+        """
+        low, high = min(values), max(values)
+        if high == low:
+            return 0.0
+        return (value - low) / (high - low)
+
     def _score(self, profile: BackendProfile) -> float:
+        latencies = [p.mean_latency_ms for p in self.profiles]
+        costs = [p.cost_per_1k_tokens for p in self.profiles]
+        throughputs = [p.output_tokens_per_second for p in self.profiles]
         return (
-            self.latency_weight * profile.mean_latency_ms
-            + self.cost_weight * profile.cost_per_1k_tokens
-            - self.throughput_weight * profile.output_tokens_per_second
+            self.latency_weight * self._normalized(profile.mean_latency_ms, latencies)
+            + self.cost_weight * self._normalized(profile.cost_per_1k_tokens, costs)
+            - self.throughput_weight * self._normalized(profile.output_tokens_per_second, throughputs)
         )
 
     def choose(self) -> tuple[InferenceAdapter, SelectionDecision]:
@@ -56,7 +74,7 @@ class CostLatencyScheduler:
         return selected.adapter, SelectionDecision(
             adapter=selected.adapter.name,
             score=round(score, 6),
-            reason="lowest weighted latency/cost score with throughput benefit",
+            reason="lowest weighted, normalized latency/cost score with throughput benefit",
         )
 
     def infer(self, prompt: str, *, max_tokens: int) -> tuple[InferenceResponse, SelectionDecision]:

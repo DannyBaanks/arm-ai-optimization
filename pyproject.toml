@@ -12,6 +12,7 @@ license = {file = "LICENSE"}
 
 [project.scripts]
 armopt = "armopt.cli:main"
+armopt-select = "armopt.select:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
