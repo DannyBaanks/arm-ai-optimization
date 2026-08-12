@@ -63,10 +63,14 @@ not contain machine-specific paths.
 
 Two interchangeable adapters implement the same `InferenceAdapter` protocol:
 
-**`HttpAdapter`** talks to an Ollama-compatible `/api/generate` endpoint.
+**`HttpAdapter`** talks to Ollama's `/api/generate` (`--http-backend ollama`,
+default) or llama-server's `/completion` (`--http-backend llama_server`).
 Each call opens its own HTTP request with no adapter-side lock, so
 concurrent callers reach the runtime concurrently — `ThreadPoolExecutor`
-workers overlap in the runtime itself, not just in Python.
+workers overlap in the runtime itself, not just in Python (this is
+directly tested, not assumed — see `test_http_adapter.py`). Whether that
+turns into wall-clock speedup depends on the runtime's own concurrency
+model; see the findings below.
 
 **`JsonlAdapter`** connects a persistent external runtime over stdin/stdout
 without coupling the harness to its implementation:
@@ -83,42 +87,53 @@ pool) when you need true concurrent inference.
 
 ## What we actually found on a free Arm64 runner
 
-`examples/evidence/arm64_ci_step{1..4}_*.json` is the real diagnostic trail
-from running this harness against `qwen2.5:0.5b` on a 4-vCPU GitHub-hosted
-Arm64 runner, in order:
+`examples/evidence/arm64_ci_step{1..5}_*.json` is the real diagnostic trail
+from running this harness on a 4-vCPU GitHub-hosted Arm64 runner:
 
-1. Default Ollama threading, default `OLLAMA_NUM_PARALLEL` → **0.983x**
-   ("speedup" that isn't one). Mean per-request latency nearly 4x'd under
-   concurrency while wall time didn't move — the signature of contention,
-   not parallel gain.
-2. Capped `num_thread=1` per request (hypothesis: core oversubscription)
-   → **1.091x**, but *absolute* wall time roughly doubled. Ruled out:
-   thread capping cost more than it bought.
-3. `OLLAMA_NUM_PARALLEL=4` with default threading (hypothesis: the server
-   itself was serializing requests) → **0.944x**. Also ruled out.
-4. `OLLAMA_NUM_PARALLEL=4` with `num_thread=1` → **1.089x**, same as step 2.
+1. Ollama, default per-request threading, default `OLLAMA_NUM_PARALLEL` →
+   **0.983x** ("speedup" that isn't one). Mean per-request latency nearly
+   4x'd under concurrency while wall time didn't move.
+2. Ollama, `num_thread=1` capped (hypothesis: core oversubscription) →
+   **1.091x**, but *absolute* wall time roughly doubled. Ruled out.
+3. Ollama, `OLLAMA_NUM_PARALLEL=4`, default threading (hypothesis: the
+   server was serializing requests, fixable with its own concurrency
+   setting) → **0.944x**. Also ruled out.
+4. Ollama, `OLLAMA_NUM_PARALLEL=4` + `num_thread=1` → **1.089x**, same as
+   step 2.
 
-Neither lever moved the number. The actual explanation: a single sequential
-request on this box already uses all 4 cores for its matrix multiplies
-(that's how `llama.cpp`/`ggml` threading works) — the runner is
-compute-saturated by *one* request. There's no idle core for a second
-concurrent request to run on, so `DataflowSession`'s persistent worker pool
-has nothing to overlap. This is the standard I/O-bound-vs-compute-bound
-distinction: concurrency pays off when there's slack to fill, not when
-you're already at 100% CPU. A larger Arm64 instance (more cores than one
-request's thread count) or a runtime that batches multiple prompts into
-one forward pass (real batching, not request-level concurrency) would be
-the next thing to try — that's future work, not a claim this repo makes.
+Neither lever moved the number, which meant the open question was: is this
+box compute-saturated with no spare cycles for concurrency (a hardware
+ceiling), or is Ollama itself just not overlapping requests on this CPU-only
+build (a runtime limitation)? We isolated it directly: a scratch test ran
+`HttpAdapter` against a `ThreadingHTTPServer` fixture that sleeps 1s per
+request — 4 concurrent calls finished in **1.21s**, not ~4s (codified as
+`test_concurrent_calls_actually_overlap_in_wall_time`). The client-side
+concurrency mechanism was never the problem. Ollama's server was.
+
+5. Swapped to `llama-server` (llama.cpp's own HTTP server, `--parallel 4
+   -t 1` — four single-threaded slots exactly filling the 4 cores) →
+   **1.39x**, and a different signature: wall time genuinely dropped
+   (23.6s → 17.0s for 8 requests) while per-request latency rose from real
+   CPU/memory contention between four simultaneous inferences, not queueing.
+   That's what actual parallelism looks like on this hardware, and it's
+   real, if modest — the ceiling is four cores each running one thread, not
+   a marketing number.
+
+Same workload, same model family, same signed-evidence pipeline, two
+different HTTP runtimes — one that didn't deliver concurrency on this box
+and one that did, both documented with real numbers instead of picking the
+one that looked better.
 
 ## Arm64 CI evidence
 
 `.github/workflows/arm64-benchmark.yml` runs the full benchmark on a
 GitHub-hosted `ubuntu-24.04-arm` runner (Arm64 silicon, free for public
-repos, no cloud account needed): installs Ollama, pulls a small model,
-runs `armopt.cli` against it over `HttpAdapter`, and uploads the signed
-evidence JSON as a workflow artifact. The job fails outright if
-`uname -m` isn't `aarch64`, so a passing run is proof the numbers came
-from real Arm64 hardware, not an x86 host claiming otherwise.
+repos, no cloud account needed): installs Ollama and pulls a small model,
+builds `llama-server` from source, runs `armopt.cli` against both over
+`HttpAdapter`, and uploads every signed evidence JSON as a workflow
+artifact. The job fails outright if `uname -m` isn't `aarch64`, so a
+passing run is proof the numbers came from real Arm64 hardware, not an x86
+host claiming otherwise.
 
 ## License
 
