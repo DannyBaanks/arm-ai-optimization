@@ -1,0 +1,19 @@
+{
+  "candidates": [
+    {
+      "adapter": "http:ollama:qwen2.5:0.5b",
+      "mean_latency_ms": 3993.209,
+      "output_tokens_per_second": 55.007,
+      "cost_per_1k_tokens": 0.0
+    },
+    {
+      "adapter": "http:llama_server:qwen2.5-0.5b-instruct-q4_k_m",
+      "mean_latency_ms": 8460.242,
+      "output_tokens_per_second": 30.258,
+      "cost_per_1k_tokens": 0.0
+    }
+  ],
+  "selected": "http:ollama:qwen2.5:0.5b",
+  "score": -1.0,
+  "reason": "lowest weighted, normalized latency/cost score with throughput benefit"
+}
