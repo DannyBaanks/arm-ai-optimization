@@ -44,7 +44,7 @@ def profile_from_evidence(path: Path, *, cost_per_1k_tokens: float = 0.0) -> Bac
     )
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence", action="append", required=True, metavar="PATH",
                          help="an evidence JSON written by armopt.cli --evidence; repeatable")
@@ -55,7 +55,14 @@ def main() -> int:
     parser.add_argument("--latency-weight", type=float, default=1.0)
     parser.add_argument("--cost-weight", type=float, default=1.0)
     parser.add_argument("--throughput-weight", type=float, default=1.0)
-    args = parser.parse_args()
+    return parser
+
+
+def run(argv: list[str] | None = None) -> dict[str, object]:
+    """Parse args, build profiles from evidence, run the scheduler, and
+    return a structured decision. ``main()`` is a thin CLI wrapper around
+    this, same relationship as ``armopt.cli.run``/``main``."""
+    args = build_parser().parse_args(argv)
 
     costs = args.cost_per_1k_tokens + [0.0] * (len(args.evidence) - len(args.cost_per_1k_tokens))
     profiles = [
@@ -69,7 +76,7 @@ def main() -> int:
         throughput_weight=args.throughput_weight,
     )
     _, decision = scheduler.choose()
-    print(json.dumps({
+    return {
         "candidates": [
             {
                 "adapter": profile.adapter.name,
@@ -82,7 +89,11 @@ def main() -> int:
         "selected": decision.adapter,
         "score": decision.score,
         "reason": decision.reason,
-    }, indent=2))
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    print(json.dumps(run(argv), indent=2))
     return 0
 
 

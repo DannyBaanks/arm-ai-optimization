@@ -107,12 +107,33 @@ class HttpAdapterOllamaTests(unittest.TestCase):
         # concurrently, not ~1.2s. (This is what isolated a real hackathon
         # bug: Ollama's own server turned out not to overlap requests even
         # though this adapter and this test both do.)
+        #
+        # Measures both concurrent and sequential in the same run, back to
+        # back, and compares their ratio rather than either against a fixed
+        # threshold -- a fixed threshold flakes under real system load
+        # (observed directly on this dev machine: it failed right after a
+        # heavy local benchmark run and again mid-suite, both times passing
+        # cleanly in isolation). The 0.75 margin is deliberately generous:
+        # true request-level serialization would put the ratio near 1.0, so
+        # even a loaded machine should stay well under it if requests
+        # actually overlap.
         _OllamaFixtureHandler.response_delay_s = 0.3
+        self.adapter.infer("warmup", max_tokens=8)  # absorb first-connection setup cost, untimed
         started = time.perf_counter()
         with ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(lambda i: self.adapter.infer(f"p{i}", max_tokens=8), range(4)))
-        elapsed = time.perf_counter() - started
-        self.assertLess(elapsed, 0.3 * 4 * 0.7, "4 concurrent calls took roughly as long as 4 sequential ones")
+        concurrent_elapsed = time.perf_counter() - started
+
+        started = time.perf_counter()
+        for i in range(4):
+            self.adapter.infer(f"s{i}", max_tokens=8)
+        sequential_elapsed = time.perf_counter() - started
+
+        self.assertLess(
+            concurrent_elapsed, sequential_elapsed * 0.75,
+            f"concurrent ({concurrent_elapsed:.2f}s) should be well under "
+            f"sequential ({sequential_elapsed:.2f}s) if requests truly overlap",
+        )
 
 
 class HttpAdapterLlamaServerTests(unittest.TestCase):

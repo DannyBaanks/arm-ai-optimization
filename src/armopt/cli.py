@@ -46,7 +46,7 @@ def _build_workload(args: argparse.Namespace) -> Workload:
     )
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--demo", action="store_true", help="alias for --adapter demo")
     parser.add_argument("--adapter", choices=("demo", "http"), default="demo")
@@ -72,7 +72,19 @@ def main() -> int:
     parser.add_argument("--evidence", type=Path, default=None,
                          help="write a signed evidence JSON here, e.g. evidence/run.json")
     parser.add_argument("--workload-id", default="inline-demo")
-    args = parser.parse_args()
+    return parser
+
+
+def run(argv: list[str] | None = None) -> dict[str, object]:
+    """Parse args, run the benchmark, optionally write evidence, and return
+    a structured outcome -- ``{"result", "evidence_path", "adapter"}``.
+
+    ``main()`` below is a thin CLI wrapper around this; the interactive
+    menu calls this same function in-process instead of shelling out and
+    re-parsing stdout, so there is exactly one place this logic lives.
+    """
+    parser = build_parser()
+    args = parser.parse_args(argv)
     if args.demo:
         args.adapter = "demo"
     if args.requests < 1:
@@ -91,8 +103,8 @@ def main() -> int:
             adapter, workload,
             workers=args.workers, mode=args.mode, warmup_requests=args.warmup,
         ).to_dict()
-    print(json.dumps(result, indent=2))
 
+    evidence_path: Path | None = None
     if args.evidence is not None:
         args.evidence.parent.mkdir(parents=True, exist_ok=True)
         write_evidence(
@@ -101,7 +113,19 @@ def main() -> int:
             workload_id=args.workload_id,
             adapter=adapter.name,
         )
-        print(f"evidence written to {args.evidence}")
+        evidence_path = args.evidence
+
+    return {"result": result, "evidence_path": evidence_path, "adapter": adapter.name}
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Entry point for the ``armopt`` console script. ``argv=None`` (the
+    default) reads ``sys.argv``, unchanged from before this module grew a
+    ``run()``."""
+    outcome = run(argv)
+    print(json.dumps(outcome["result"], indent=2))
+    if outcome["evidence_path"] is not None:
+        print(f"evidence written to {outcome['evidence_path']}")
     return 0
 
 

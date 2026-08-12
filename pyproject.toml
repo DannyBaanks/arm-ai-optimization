@@ -16,6 +16,7 @@ test = ["pytest>=7"]
 [project.scripts]
 armopt = "armopt.cli:main"
 armopt-select = "armopt.select:main"
+armopt-menu = "armopt.menu:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
