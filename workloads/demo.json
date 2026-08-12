@@ -1,0 +1,5 @@
+[
+  {"prompt": "Summarize the role of CPU inference in edge AI."},
+  {"prompt": "Explain one benefit of quantization for Arm deployment."},
+  {"prompt": "Describe a reproducible latency benchmark."}
+]
