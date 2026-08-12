@@ -38,7 +38,11 @@ jobs:
 
       - name: Start Ollama and wait for it to be ready
         run: |
-          ollama serve &
+          # Ollama serializes generate calls against a single loaded model
+          # unless told otherwise -- this is the runtime-level concurrency
+          # limit HttpAdapter's docstring already calls out as outside the
+          # adapter's control. Set it explicitly instead of guessing at it.
+          OLLAMA_NUM_PARALLEL=4 ollama serve &
           for i in $(seq 1 30); do
             if curl -sf http://localhost:11434/api/tags > /dev/null; then
               echo "ollama is up"
@@ -52,11 +56,10 @@ jobs:
       - name: Pull a small model
         run: ollama pull qwen2.5:0.5b
 
-      - name: Run the naive comparison (default Ollama threading)
-        # Ollama defaults to using ~all cores for every request. With
-        # --workers 4 on a 4-vCPU runner, 4 concurrent requests each try to
-        # use 4 threads: 16 threads fighting over 4 cores. This step exists
-        # to document that oversubscription honestly, not to hide it.
+      - name: Run with default per-request threading (OLLAMA_NUM_PARALLEL=4)
+        # Server now allows 4 concurrent generate calls; each still grabs
+        # ~all cores by default. If oversubscription is the bottleneck,
+        # this step should look like the earlier naive run (~1.0x).
         run: |
           mkdir -p evidence
           python -m armopt.cli \
@@ -64,14 +67,13 @@ jobs:
             --workload-file workloads/demo.json \
             --workers 4 --repeats 3 --mode both \
             --evidence evidence/arm64_naive.json \
-            --workload-id demo-arm64-ci-naive \
+            --workload-id demo-arm64-ci-parallel4-default-threads \
             | tee evidence/arm64_naive_stdout.json
 
-      - name: Run the thread-capped comparison (fair core split)
-        # num_thread=1 for every request, on both baseline and dataflow, so
-        # 4 concurrent requests divide the 4 cores instead of fighting for
-        # them. Both modes get the identical per-request thread budget --
-        # this is an apples-to-apples control, not a thumb on the scale.
+      - name: Run with capped per-request threading (OLLAMA_NUM_PARALLEL=4, num_thread=1)
+        # Same server concurrency setting, but each request now asks for
+        # only 1 thread on both baseline and dataflow -- identical budget
+        # both sides, so it's a fair control, not a thumb on the scale.
         run: |
           python -m armopt.cli \
             --adapter http --http-url http://localhost:11434 --http-model qwen2.5:0.5b \
@@ -79,18 +81,18 @@ jobs:
             --workload-file workloads/demo.json \
             --workers 4 --repeats 3 --mode both \
             --evidence evidence/arm64_capped.json \
-            --workload-id demo-arm64-ci-thread-capped \
+            --workload-id demo-arm64-ci-parallel4-thread-capped \
             | tee evidence/arm64_capped_stdout.json
 
       - name: Publish results to the job summary
         run: |
           echo "## Arm64 benchmark evidence" >> "$GITHUB_STEP_SUMMARY"
-          echo "Runner architecture: \`$(uname -m)\`, \`$(nproc)\` vCPUs" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Naive (default Ollama threading, cores oversubscribed)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Runner architecture: \`$(uname -m)\`, \`$(nproc)\` vCPUs, OLLAMA_NUM_PARALLEL=4" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Default per-request threading" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat evidence/arm64_naive_stdout.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "### Thread-capped (num_thread=1, cores divided fairly)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Capped per-request threading (num_thread=1)" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat evidence/arm64_capped_stdout.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"

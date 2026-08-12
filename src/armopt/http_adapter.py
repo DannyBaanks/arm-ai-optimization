@@ -1,11 +1,11 @@
 """HTTP adapter for interchangeable inference runtimes.
 
-Targets Ollama's ``/api/generate`` contract by default (the runtime this
-harness was validated against), but any HTTP runtime that accepts a JSON
-POST and returns JSON can be reached by pointing ``url`` at it and adapting
-``_build_payload``/``_parse_response`` below -- the adapter itself carries
-no host, port, or model assumption; those are supplied by the caller
-through ``HttpAdapterConfig``, exactly like ``JsonlAdapter.command``.
+Speaks Ollama's ``/api/generate`` contract specifically (the runtime this
+harness was validated against). To reach a different HTTP runtime with a
+different wire format, adapt the payload/response handling in ``infer``
+below -- the adapter itself carries no host, port, or model assumption;
+those are supplied by the caller through ``HttpAdapterConfig``, exactly
+like ``JsonlAdapter.command``.
 
 Unlike ``JsonlAdapter`` (one persistent process, one stdin/stdout pipe,
 serialized behind a lock), each call here opens its own HTTP request and

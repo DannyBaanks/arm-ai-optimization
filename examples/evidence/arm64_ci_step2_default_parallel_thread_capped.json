@@ -1,0 +1,35 @@
+{
+  "schema": "armopt.evidence/1",
+  "created_at": "2026-08-12T19:12:01.662621+00:00",
+  "workload_id": "demo-arm64-ci-thread-capped",
+  "adapter": "http:qwen2.5:0.5b",
+  "platform": "Linux-6.17.0-1020-azure-aarch64-with-glibc2.39",
+  "python": "3.12.13",
+  "results": {
+    "baseline": {
+      "adapter": "http:qwen2.5:0.5b",
+      "mode": "sequential",
+      "requests": 8,
+      "workers": 1,
+      "wall_ms": 22307.244,
+      "mean_latency_ms": 2788.402,
+      "p95_latency_ms": 3036.746,
+      "output_tokens": 512,
+      "tokens_per_second": 22.952
+    },
+    "dataflow": {
+      "adapter": "http:qwen2.5:0.5b",
+      "mode": "dataflow",
+      "requests": 8,
+      "workers": 4,
+      "wall_ms": 20438.653,
+      "mean_latency_ms": 8327.856,
+      "p95_latency_ms": 10340.737,
+      "output_tokens": 512,
+      "tokens_per_second": 25.051
+    },
+    "speedup_wall": 1.091,
+    "repeats": 3
+  },
+  "evidence_sha256": "bcadf5c289edd9779a4813e0e4e6c7c3fb6c7cc4240329b02ea346c837fb3be6"
+}
