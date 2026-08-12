@@ -52,26 +52,52 @@ jobs:
       - name: Pull a small model
         run: ollama pull qwen2.5:0.5b
 
-      - name: Run the benchmark against real Arm64 inference
+      - name: Run the naive comparison (default Ollama threading)
+        # Ollama defaults to using ~all cores for every request. With
+        # --workers 4 on a 4-vCPU runner, 4 concurrent requests each try to
+        # use 4 threads: 16 threads fighting over 4 cores. This step exists
+        # to document that oversubscription honestly, not to hide it.
         run: |
           mkdir -p evidence
           python -m armopt.cli \
             --adapter http --http-url http://localhost:11434 --http-model qwen2.5:0.5b \
             --workload-file workloads/demo.json \
             --workers 4 --repeats 3 --mode both \
-            --evidence evidence/arm64_ci.json \
-            --workload-id demo-arm64-ci \
-            | tee evidence/arm64_ci_stdout.json
+            --evidence evidence/arm64_naive.json \
+            --workload-id demo-arm64-ci-naive \
+            | tee evidence/arm64_naive_stdout.json
+
+      - name: Run the thread-capped comparison (fair core split)
+        # num_thread=1 for every request, on both baseline and dataflow, so
+        # 4 concurrent requests divide the 4 cores instead of fighting for
+        # them. Both modes get the identical per-request thread budget --
+        # this is an apples-to-apples control, not a thumb on the scale.
+        run: |
+          python -m armopt.cli \
+            --adapter http --http-url http://localhost:11434 --http-model qwen2.5:0.5b \
+            --http-num-thread 1 \
+            --workload-file workloads/demo.json \
+            --workers 4 --repeats 3 --mode both \
+            --evidence evidence/arm64_capped.json \
+            --workload-id demo-arm64-ci-thread-capped \
+            | tee evidence/arm64_capped_stdout.json
 
       - name: Publish results to the job summary
         run: |
           echo "## Arm64 benchmark evidence" >> "$GITHUB_STEP_SUMMARY"
-          echo "Runner architecture: \`$(uname -m)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Runner architecture: \`$(uname -m)\`, \`$(nproc)\` vCPUs" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Naive (default Ollama threading, cores oversubscribed)" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat evidence/arm64_ci_stdout.json >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/arm64_naive_stdout.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "### Thread-capped (num_thread=1, cores divided fairly)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/arm64_capped_stdout.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
           name: arm64-evidence
-          path: evidence/arm64_ci.json
+          path: |
+            evidence/arm64_naive.json
+            evidence/arm64_capped.json

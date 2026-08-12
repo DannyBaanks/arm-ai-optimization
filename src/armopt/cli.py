@@ -32,6 +32,7 @@ def _build_adapter(args: argparse.Namespace) -> InferenceAdapter:
         url=args.http_url,
         model=args.http_model,
         name=f"http:{args.http_model}",
+        num_thread=args.http_num_thread,
     ))
 
 
@@ -51,6 +52,9 @@ def main() -> int:
     parser.add_argument("--http-url", default=None,
                          help="base URL of an Ollama-compatible runtime, e.g. http://localhost:11434")
     parser.add_argument("--http-model", default=None)
+    parser.add_argument("--http-num-thread", type=int, default=None,
+                         help="CPU threads per request; set to cores // workers to avoid "
+                              "concurrent requests oversubscribing the same cores")
     parser.add_argument("--workload-file", type=Path, default=None,
                          help="JSON/JSONL file of prompts; overrides --requests")
     parser.add_argument("--requests", type=int, default=16,
