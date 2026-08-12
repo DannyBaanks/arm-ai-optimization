@@ -81,6 +81,35 @@ single persistent subprocess is assumed to handle one request at a time.
 Use `HttpAdapter` (or run several `JsonlAdapter` processes behind your own
 pool) when you need true concurrent inference.
 
+## What we actually found on a free Arm64 runner
+
+`examples/evidence/arm64_ci_step{1..4}_*.json` is the real diagnostic trail
+from running this harness against `qwen2.5:0.5b` on a 4-vCPU GitHub-hosted
+Arm64 runner, in order:
+
+1. Default Ollama threading, default `OLLAMA_NUM_PARALLEL` → **0.983x**
+   ("speedup" that isn't one). Mean per-request latency nearly 4x'd under
+   concurrency while wall time didn't move — the signature of contention,
+   not parallel gain.
+2. Capped `num_thread=1` per request (hypothesis: core oversubscription)
+   → **1.091x**, but *absolute* wall time roughly doubled. Ruled out:
+   thread capping cost more than it bought.
+3. `OLLAMA_NUM_PARALLEL=4` with default threading (hypothesis: the server
+   itself was serializing requests) → **0.944x**. Also ruled out.
+4. `OLLAMA_NUM_PARALLEL=4` with `num_thread=1` → **1.089x**, same as step 2.
+
+Neither lever moved the number. The actual explanation: a single sequential
+request on this box already uses all 4 cores for its matrix multiplies
+(that's how `llama.cpp`/`ggml` threading works) — the runner is
+compute-saturated by *one* request. There's no idle core for a second
+concurrent request to run on, so `DataflowSession`'s persistent worker pool
+has nothing to overlap. This is the standard I/O-bound-vs-compute-bound
+distinction: concurrency pays off when there's slack to fill, not when
+you're already at 100% CPU. A larger Arm64 instance (more cores than one
+request's thread count) or a runtime that batches multiple prompts into
+one forward pass (real batching, not request-level concurrency) would be
+the next thing to try — that's future work, not a claim this repo makes.
+
 ## Arm64 CI evidence
 
 `.github/workflows/arm64-benchmark.yml` runs the full benchmark on a
