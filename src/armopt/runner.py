@@ -63,12 +63,20 @@ def run_benchmark(
     workers: int = 1,
     mode: ExecutionMode = "sequential",
     session: DataflowSession | None = None,
+    warmup_requests: int = 0,
 ) -> BenchmarkResult:
-    """Run a workload and return reproducible latency/throughput metrics."""
+    """Run a workload and return latency/throughput metrics for this pass.
+
+    ``warmup_requests`` calls happen first and are excluded from every
+    metric below -- they exist to absorb model-load/cache-cold latency so
+    the timed pass reflects steady-state performance, not first-token cost.
+    """
     if workers < 1:
         raise ValueError("workers must be positive")
     if mode not in ("sequential", "dataflow"):
         raise ValueError(f"unsupported execution mode: {mode}")
+    if warmup_requests < 0:
+        raise ValueError("warmup_requests must not be negative")
 
     prompts = list(workload.prompts)
     latencies: list[float] = []
@@ -79,6 +87,9 @@ def run_benchmark(
         response = adapter.infer(prompt, max_tokens=workload.max_tokens)
         elapsed_ms = (time.perf_counter() - started) * 1000
         return elapsed_ms, response.output_tokens
+
+    for _ in range(warmup_requests):
+        adapter.infer(prompts[0], max_tokens=workload.max_tokens)
 
     started = time.perf_counter()
     if mode == "sequential":
@@ -110,26 +121,65 @@ def run_benchmark(
     )
 
 
+def _median_result(results: list[BenchmarkResult]) -> BenchmarkResult:
+    """Collapse repeated runs into their median, so one lucky/unlucky pass
+    can't decide the headline number."""
+    first = results[0]
+    return BenchmarkResult(
+        adapter=first.adapter,
+        mode=first.mode,
+        requests=first.requests,
+        workers=first.workers,
+        wall_ms=round(statistics.median(r.wall_ms for r in results), 3),
+        mean_latency_ms=round(statistics.median(r.mean_latency_ms for r in results), 3),
+        p95_latency_ms=round(statistics.median(r.p95_latency_ms for r in results), 3),
+        output_tokens=results[-1].output_tokens,
+        tokens_per_second=round(statistics.median(r.tokens_per_second for r in results), 3),
+    )
+
+
 def compare_modes(
     adapter: InferenceAdapter,
     workload: Workload,
     *,
     workers: int = 1,
+    repeats: int = 1,
+    warmup_requests: int = 1,
 ) -> dict[str, object]:
-    """Run the identical workload through baseline and persistent Dataflow."""
-    baseline = run_benchmark(adapter, workload, workers=1, mode="sequential")
-    with DataflowSession(workers) as session:
-        dataflow = run_benchmark(
-            adapter,
-            workload,
-            workers=workers,
-            mode="dataflow",
-            session=session,
+    """Run the identical workload through baseline and persistent Dataflow.
+
+    Each mode runs ``repeats`` times (with ``warmup_requests`` untimed calls
+    before the first repeat only) and reports the median across repeats.
+    This measures the benefit of the execution *strategy* -- reusing a
+    persistent worker pool instead of running requests one at a time -- for
+    whatever adapter is plugged in. It is not a claim about the adapter's
+    own internal optimizations.
+    """
+    if repeats < 1:
+        raise ValueError("repeats must be positive")
+
+    baseline_runs = [
+        run_benchmark(
+            adapter, workload, workers=1, mode="sequential",
+            warmup_requests=warmup_requests if index == 0 else 0,
         )
-    baseline_wall = baseline.wall_ms
-    speedup = baseline_wall / dataflow.wall_ms if dataflow.wall_ms else 0.0
+        for index in range(repeats)
+    ]
+    with DataflowSession(workers) as session:
+        dataflow_runs = [
+            run_benchmark(
+                adapter, workload, workers=workers, mode="dataflow", session=session,
+                warmup_requests=warmup_requests if index == 0 else 0,
+            )
+            for index in range(repeats)
+        ]
+
+    baseline = _median_result(baseline_runs)
+    dataflow = _median_result(dataflow_runs)
+    speedup = baseline.wall_ms / dataflow.wall_ms if dataflow.wall_ms else 0.0
     return {
         "baseline": baseline.to_dict(),
         "dataflow": dataflow.to_dict(),
         "speedup_wall": round(speedup, 3),
+        "repeats": repeats,
     }

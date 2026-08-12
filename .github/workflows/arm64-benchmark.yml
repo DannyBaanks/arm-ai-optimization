@@ -1,0 +1,77 @@
+name: Arm64 benchmark evidence
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["**"]
+
+jobs:
+  benchmark:
+    # GitHub-hosted Arm64 runner (Azure Cobalt silicon), free for public
+    # repos. No cloud account, no SSH, no credit card -- this job is the
+    # "real Arm64 host" the harness's own README asks for.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Confirm we are actually on Arm64
+        run: |
+          uname -m
+          if [ "$(uname -m)" != "aarch64" ]; then
+            echo "::error::runner is not aarch64, refusing to produce evidence"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the harness
+        run: python -m pip install -e . pytest
+
+      - name: Run unit tests
+        run: python -m pytest tests/ -q
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and wait for it to be ready
+        run: |
+          ollama serve &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:11434/api/tags > /dev/null; then
+              echo "ollama is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::ollama never became ready"
+          exit 1
+
+      - name: Pull a small model
+        run: ollama pull qwen2.5:0.5b
+
+      - name: Run the benchmark against real Arm64 inference
+        run: |
+          mkdir -p evidence
+          python -m armopt.cli \
+            --adapter http --http-url http://localhost:11434 --http-model qwen2.5:0.5b \
+            --workload-file workloads/demo.json \
+            --workers 4 --repeats 3 --mode both \
+            --evidence evidence/arm64_ci.json \
+            --workload-id demo-arm64-ci \
+            | tee evidence/arm64_ci_stdout.json
+
+      - name: Publish results to the job summary
+        run: |
+          echo "## Arm64 benchmark evidence" >> "$GITHUB_STEP_SUMMARY"
+          echo "Runner architecture: \`$(uname -m)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/arm64_ci_stdout.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arm64-evidence
+          path: evidence/arm64_ci.json

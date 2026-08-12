@@ -4,6 +4,7 @@ from .contracts import InferenceAdapter, InferenceResponse, Workload
 from .runner import BenchmarkResult, DataflowSession, compare_modes, run_benchmark
 from .scheduler import CostLatencyScheduler, BackendProfile, SelectionDecision
 from .jsonl_adapter import JsonlAdapter, JsonlAdapterConfig
+from .http_adapter import HttpAdapter, HttpAdapterConfig
 from .workload import load_workload
 
 __all__ = [
@@ -16,6 +17,8 @@ __all__ = [
     "SelectionDecision",
     "JsonlAdapter",
     "JsonlAdapterConfig",
+    "HttpAdapter",
+    "HttpAdapterConfig",
     "load_workload",
     "Workload",
     "compare_modes",

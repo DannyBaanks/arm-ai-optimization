@@ -1,0 +1,35 @@
+{
+  "schema": "armopt.evidence/1",
+  "created_at": "2026-08-12T11:47:25.162890+00:00",
+  "workload_id": "demo-x86-smoke",
+  "adapter": "http:isyco-host",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.4",
+  "results": {
+    "baseline": {
+      "adapter": "http:isyco-host",
+      "mode": "sequential",
+      "requests": 3,
+      "workers": 1,
+      "wall_ms": 14888.448,
+      "mean_latency_ms": 4962.811,
+      "p95_latency_ms": 5640.02,
+      "output_tokens": 152,
+      "tokens_per_second": 10.244
+    },
+    "dataflow": {
+      "adapter": "http:isyco-host",
+      "mode": "dataflow",
+      "requests": 3,
+      "workers": 3,
+      "wall_ms": 11148.841,
+      "mean_latency_ms": 8607.018,
+      "p95_latency_ms": 11147.945,
+      "output_tokens": 174,
+      "tokens_per_second": 15.568
+    },
+    "speedup_wall": 1.335,
+    "repeats": 2
+  },
+  "evidence_sha256": "8de5118a288e67476e831ab60c2d1f1adf6e8ed254e1d1916f158ffe8ed6a89c"
+}
