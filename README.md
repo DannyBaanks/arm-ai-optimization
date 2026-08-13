@@ -1,5 +1,7 @@
 # Arm AI Optimization Harness
 
+[![Arm64 benchmark evidence](https://github.com/DannyBaanks/arm-ai-optimization/actions/workflows/arm64-benchmark.yml/badge.svg)](https://github.com/DannyBaanks/arm-ai-optimization/actions/workflows/arm64-benchmark.yml)
+
 A small, reproducible tool that measures whether a given execution
 strategy actually speeds up AI inference on a given host -- runs the same
 workload through real runtimes, writes signed evidence for every result,
