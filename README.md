@@ -27,9 +27,9 @@ not, so this evidence cannot be produced off-target.
 <!-- ARM64_TABLE:START -->
 | Runtime configuration | Sequential | Dataflow | Wall-time | tokens/s |
 |---|---|---|---|---|
-| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.01s | 9.84s | **1.018x** | 51.1 -> 52.0 |
-| Ollama, capped per-request threading (num_thread=1) | 22.05s | 20.20s | **1.091x** | 23.2 -> 25.3 |
-| **llama-server, --parallel 4 -t 1** | 22.86s | 16.94s | **1.35x** | 22.4 -> 30.2 |
+| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.60s | 11.03s | **0.961x** | 48.3 -> 46.4 |
+| Ollama, capped per-request threading (num_thread=1) | 22.78s | 20.75s | **1.098x** | 22.5 -> 24.7 |
+| **llama-server, --parallel 4 -t 1** | 23.15s | 16.96s | **1.365x** | 22.1 -> 30.2 |
 <!-- ARM64_TABLE:END -->
 
 Evidence: [`evidence/arm64_ci/`](evidence/arm64_ci/) · Rendered:
@@ -58,8 +58,8 @@ with the best speedup.
 <!-- SCHEDULER_TABLE:START -->
 | | mean latency | tokens/s | wall-time speedup |
 |---|---|---|---|
-| **Ollama** (deployed) | **4,318 ms** | **52.0** | 1.018x |
-| llama-server | 8,468 ms | 30.2 | 1.35x |
+| **Ollama** (deployed) | **4,827 ms** | **46.4** | 0.961x |
+| llama-server | 8,481 ms | 30.2 | 1.365x |
 <!-- SCHEDULER_TABLE:END -->
 
 llama-server wins wall-clock throughput on a batch of 8 and loses everything a

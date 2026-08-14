@@ -9,17 +9,17 @@ from an x86 host.
 - **Python**: 3.12.13
 - **Model**: qwen2.5-0.5b-instruct
 - **Workload**: 8 requests, 3 repeats, 4 workers in dataflow mode
-- **Measured**: 2026-08-14T14:09:50.664049+00:00
+- **Measured**: 2026-08-14T19:06:38.954609+00:00
 
 ## Measured configurations
 
 | Configuration | Sequential | Dataflow | Wall-time speedup | tokens/s |
 |---|---|---|---|---|
-| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.01s | 9.84s | **1.018x** | 51.1 -> 52.0 |
-| Ollama, capped per-request threading (num_thread=1) | 22.05s | 20.20s | **1.091x** | 23.2 -> 25.3 |
-| llama-server, --parallel 4 -t 1 | 22.86s | 16.94s | **1.35x** | 22.4 -> 30.2 |
+| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.60s | 11.03s | **0.961x** | 48.3 -> 46.4 |
+| Ollama, capped per-request threading (num_thread=1) | 22.78s | 20.75s | **1.098x** | 22.5 -> 24.7 |
+| llama-server, --parallel 4 -t 1 | 23.15s | 16.96s | **1.365x** | 22.1 -> 30.2 |
 
-**Best wall-time speedup**: 1.35x (llama-server, --parallel 4 -t 1).
+**Best wall-time speedup**: 1.365x (llama-server, --parallel 4 -t 1).
 
 ## Scheduler decision
 
@@ -33,9 +33,9 @@ see the repository README for why that disagreement is the point.
 
 | File | evidence_sha256 |
 |---|---|
-| `evidence/arm64_ci/arm64_naive.json` | `5d4a8384d399a4ad...` |
-| `evidence/arm64_ci/arm64_capped.json` | `931c2ef33c8c34a5...` |
-| `evidence/arm64_ci/arm64_llama_server.json` | `9885676b0d3771a7...` |
+| `evidence/arm64_ci/arm64_naive.json` | `380df1f9a3d1aa17...` |
+| `evidence/arm64_ci/arm64_capped.json` | `da8162f0985ece56...` |
+| `evidence/arm64_ci/arm64_llama_server.json` | `1a8931995b931548...` |
 
 Verify any of them:
 
