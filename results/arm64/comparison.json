@@ -1,6 +1,6 @@
 {
   "schema": "armopt.comparison/2",
-  "measured_at": "2026-08-14T05:35:55.729784+00:00",
+  "measured_at": "2026-08-14T13:40:14.705502+00:00",
   "provenance": {
     "source": "GitHub Actions workflow arm64-benchmark.yml",
     "runner": "ubuntu-24.04-arm (GitHub-hosted Arm64, Azure Cobalt)",
@@ -10,7 +10,14 @@
     "architecture": "aarch64",
     "platform_string": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
     "python": "3.12.13",
-    "host": null
+    "host": {
+      "uname_m": "aarch64",
+      "platform": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
+      "nproc": 4,
+      "cpu_model_line": "0xd49",
+      "lscpu": "Architecture:                            aarch64\nCPU op-mode(s):                          32-bit, 64-bit\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               ARM\nModel name:                              Neoverse-N2\nModel:                                   0\nThread(s) per core:                      1\nCore(s) per socket:                      4\nSocket(s):                               1\nStepping:                                r0p0\nBogoMIPS:                                2000.00\nFlags:                                   fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 sve asimdfhm uscat ilrcpc flagm sb paca pacg dcpodp sve2 sveaes svebitperm svesha3 svesm4 flagm2 frint svei8mm svebf16 i8mm bf16\nL1d cache:                               256 KiB (4 instances)\nL1i cache:                               256 KiB (4 instances)\nL2 cache:                                4 MiB (4 instances)\nL3 cache:                                128 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; CSV2, BHB\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+      "runner_image": "ubuntu24-arm64"
+    }
   },
   "model": {
     "name": "qwen2.5-0.5b-instruct",
@@ -24,115 +31,115 @@
       "label": "Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4)",
       "workload_id": "demo-arm64-ci-parallel4-default-threads",
       "adapter": "http:ollama:qwen2.5:0.5b",
-      "measured_at": "2026-08-14T05:27:58.898336+00:00",
+      "measured_at": "2026-08-14T13:31:36.958264+00:00",
       "repeats": 3,
       "baseline": {
         "requests": 8,
         "workers": 1,
-        "wall_ms": 9675.405,
-        "mean_latency_ms": 1209.422,
-        "p95_latency_ms": 1337.251,
+        "wall_ms": 10087.42,
+        "mean_latency_ms": 1260.924,
+        "p95_latency_ms": 1506.715,
         "output_tokens": 512,
-        "tokens_per_second": 52.918
+        "tokens_per_second": 50.657
       },
       "dataflow": {
         "requests": 8,
         "workers": 4,
-        "wall_ms": 10128.965,
-        "mean_latency_ms": 4414.828,
-        "p95_latency_ms": 6018.849,
-        "output_tokens": 482,
-        "tokens_per_second": 50.548
+        "wall_ms": 10347.542,
+        "mean_latency_ms": 4558.576,
+        "p95_latency_ms": 6431.512,
+        "output_tokens": 512,
+        "tokens_per_second": 49.48
       },
       "speedup": {
-        "wall_time": 0.955,
-        "tokens_per_second": 0.955,
-        "mean_latency": 0.274
+        "wall_time": 0.975,
+        "tokens_per_second": 0.977,
+        "mean_latency": 0.277
       },
       "evidence_file": "evidence/arm64_ci/arm64_naive.json",
-      "evidence_sha256": "d634f0ddb20e5250d24177f89ea82435f79b3d3d86fb2b2fa4fffc857296c79e"
+      "evidence_sha256": "4bff23bff0683369e802d42f8f390cee3d0dfc825b7f7d7ac66829994a3a6ac1"
     },
     {
       "label": "Ollama, capped per-request threading (num_thread=1)",
       "workload_id": "demo-arm64-ci-parallel4-thread-capped",
       "adapter": "http:ollama:qwen2.5:0.5b",
-      "measured_at": "2026-08-14T05:30:15.279916+00:00",
+      "measured_at": "2026-08-14T13:33:55.802679+00:00",
       "repeats": 3,
       "baseline": {
         "requests": 8,
         "workers": 1,
-        "wall_ms": 21990.305,
-        "mean_latency_ms": 2748.785,
-        "p95_latency_ms": 3169.061,
-        "output_tokens": 512,
-        "tokens_per_second": 22.082
+        "wall_ms": 22542.483,
+        "mean_latency_ms": 2817.807,
+        "p95_latency_ms": 3081.26,
+        "output_tokens": 509,
+        "tokens_per_second": 22.713
       },
       "dataflow": {
         "requests": 8,
         "workers": 4,
-        "wall_ms": 20504.161,
-        "mean_latency_ms": 8350.125,
-        "p95_latency_ms": 10377.378,
+        "wall_ms": 20678.222,
+        "mean_latency_ms": 8423.543,
+        "p95_latency_ms": 10454.471,
         "output_tokens": 512,
-        "tokens_per_second": 24.971
+        "tokens_per_second": 24.76
       },
       "speedup": {
-        "wall_time": 1.072,
-        "tokens_per_second": 1.131,
-        "mean_latency": 0.329
+        "wall_time": 1.09,
+        "tokens_per_second": 1.09,
+        "mean_latency": 0.335
       },
       "evidence_file": "evidence/arm64_ci/arm64_capped.json",
-      "evidence_sha256": "9befa97b241c5f0b62bb3b61c2ac3b38084641f620e8710978813fcff01cb276"
+      "evidence_sha256": "dfc6312263ab40e97a6eab4958f925951a97cf334dd58c7c21b122b6bc04f082"
     },
     {
       "label": "llama-server, --parallel 4 -t 1",
       "workload_id": "demo-arm64-ci-llama-server",
       "adapter": "http:llama_server:qwen2.5-0.5b-instruct-q4_k_m",
-      "measured_at": "2026-08-14T05:35:55.729784+00:00",
+      "measured_at": "2026-08-14T13:40:14.705502+00:00",
       "repeats": 3,
       "baseline": {
         "requests": 8,
         "workers": 1,
-        "wall_ms": 23263.094,
-        "mean_latency_ms": 2907.884,
-        "p95_latency_ms": 3096.736,
+        "wall_ms": 23316.068,
+        "mean_latency_ms": 2914.505,
+        "p95_latency_ms": 3065.631,
         "output_tokens": 512,
-        "tokens_per_second": 22.009
+        "tokens_per_second": 21.809
       },
       "dataflow": {
         "requests": 8,
         "workers": 4,
-        "wall_ms": 16882.425,
-        "mean_latency_ms": 8440.879,
-        "p95_latency_ms": 8648.391,
+        "wall_ms": 17024.248,
+        "mean_latency_ms": 8506.416,
+        "p95_latency_ms": 8794.806,
         "output_tokens": 512,
-        "tokens_per_second": 30.327
+        "tokens_per_second": 30.075
       },
       "speedup": {
-        "wall_time": 1.378,
-        "tokens_per_second": 1.378,
-        "mean_latency": 0.345
+        "wall_time": 1.37,
+        "tokens_per_second": 1.379,
+        "mean_latency": 0.343
       },
       "evidence_file": "evidence/arm64_ci/arm64_llama_server.json",
-      "evidence_sha256": "d17a4c5e0e4c1d615229823bb805a8b3f9bbdd72f65cf34f537155efb18c6bb4"
+      "evidence_sha256": "e20e0d59ee56a566f130f01b3a384b2903d0d0cc49cf6d33eb3d283b8b672676"
     }
   ],
   "best_wall_time_speedup": {
     "label": "llama-server, --parallel 4 -t 1",
-    "value": 1.378
+    "value": 1.37
   },
   "scheduler_decision": {
     "candidates": [
       {
         "adapter": "http:ollama:qwen2.5:0.5b",
-        "mean_latency_ms": 4414.828,
-        "output_tokens_per_second": 50.548,
+        "mean_latency_ms": 4558.576,
+        "output_tokens_per_second": 49.48,
         "cost_per_1k_tokens": 0.0
       },
       {
         "adapter": "http:llama_server:qwen2.5-0.5b-instruct-q4_k_m",
-        "mean_latency_ms": 8440.879,
-        "output_tokens_per_second": 30.327,
+        "mean_latency_ms": 8506.416,
+        "output_tokens_per_second": 30.075,
         "cost_per_1k_tokens": 0.0
       }
     ],

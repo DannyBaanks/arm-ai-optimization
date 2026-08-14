@@ -2,14 +2,14 @@
   "candidates": [
     {
       "adapter": "http:ollama:qwen2.5:0.5b",
-      "mean_latency_ms": 4414.828,
-      "output_tokens_per_second": 50.548,
+      "mean_latency_ms": 4558.576,
+      "output_tokens_per_second": 49.48,
       "cost_per_1k_tokens": 0.0
     },
     {
       "adapter": "http:llama_server:qwen2.5-0.5b-instruct-q4_k_m",
-      "mean_latency_ms": 8440.879,
-      "output_tokens_per_second": 30.327,
+      "mean_latency_ms": 8506.416,
+      "output_tokens_per_second": 30.075,
       "cost_per_1k_tokens": 0.0
     }
   ],
