@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """
-Generate reproducible Arm64 comparison results.
+Generate reproducible demo comparison results.
 
-Runs baseline (sequential) and optimized (dataflow) benchmarks,
-produces signed evidence, and writes comparison.json with SHA256s.
+Runs baseline (sequential) and optimized (dataflow) benchmarks against the
+in-memory demo adapter, produces signed evidence, and writes comparison.json
+with SHA256s.
+
+This measures the *harness*, not an AI runtime, on whatever machine it runs
+on -- usually a developer laptop. It therefore writes to ``results/demo/``.
+
+It used to write to ``results/arm64/`` with files named ``arm64_*``, which is
+how this repo ended up shipping evidence labelled Arm64 whose contents read
+``"architecture": "AMD64"``, ``"os": "Windows 11"``. Arm64 results come from
+``scripts/build_arm64_results.py``, which reads evidence measured on a real
+aarch64 CI runner and refuses anything else.
 """
 from __future__ import annotations
 import json
@@ -17,7 +27,7 @@ from typing import Dict, Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EVIDENCE_DIR = REPO_ROOT / "evidence"
-RESULTS_DIR = REPO_ROOT / "results" / "arm64"
+RESULTS_DIR = REPO_ROOT / "results" / "demo"
 WORKLOAD_FILE = REPO_ROOT / "workloads" / "demo.json"
 
 
@@ -119,10 +129,10 @@ def main():
     print("=" * 60)
 
     # Run baseline (sequential)
-    baseline = run_benchmark("sequential", 1, "arm64_sequential.json")
+    baseline = run_benchmark("sequential", 1, "demo_sequential.json")
 
     # Run optimized (dataflow)
-    optimized = run_benchmark("dataflow", 4, "arm64_dataflow.json")
+    optimized = run_benchmark("dataflow", 4, "demo_dataflow.json")
 
     # Compute speedups
     speedup = {
@@ -175,7 +185,11 @@ def main():
     (RESULTS_DIR / "environment.json").write_text(json.dumps(env_info, indent=2))
 
     # Write human-readable summary
-    summary = f"""# Arm64 Benchmark Results
+    summary = f"""# Demo Harness Benchmark Results
+
+These numbers come from the in-memory demo adapter on the machine named below.
+They exercise the harness, not an AI runtime, and say nothing about Arm64
+performance. For Arm64 measurements see `results/arm64/`.
 
 **Generated**: {comparison['generated_at']}
 
@@ -216,7 +230,7 @@ def main():
 
 Verify with:
 ```bash
-python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/{baseline['evidence_file']}')))"
+python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/demo/{baseline['evidence_file']}')))"
 ```
 """
     (RESULTS_DIR / "README.md").write_text(summary)

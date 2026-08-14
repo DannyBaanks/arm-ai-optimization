@@ -3,70 +3,92 @@
 [![Tests](https://github.com/DannyBaanks/arm-ai-optimization/actions/workflows/ci.yml/badge.svg)](https://github.com/DannyBaanks/arm-ai-optimization/actions/workflows/ci.yml)
 [![Arm64 benchmark](https://github.com/DannyBaanks/arm-ai-optimization/actions/workflows/arm64-benchmark.yml/badge.svg)](https://github.com/DannyBaanks/arm-ai-optimization/actions/workflows/arm64-benchmark.yml)
 
-**Evidence before narrative.** Every claim below is backed by committed, hash-signed JSON under `evidence/` and `results/`.
+A deterministic test harness for platform engineers deploying small models on
+Arm64. It answers one question with evidence instead of intuition: **does your
+execution strategy actually help on this hardware, or are you paying for idle
+cycles?**
+
+**Evidence before narrative.** Every number below is recomputable from signed
+JSON committed in this repo. Nothing here was measured on a developer laptop
+and relabelled.
 
 ---
 
-## The Problem
+## What we measured on real Arm64
 
-AI inference on Arm CPUs often leaves performance on the table. Standard runtimes (Ollama, llama.cpp) run requests **sequentially** by default — each call pays full startup/initialization overhead. Under sustained load, this is wasted cycles.
+GitHub-hosted `ubuntu-24.04-arm` runner. Model: `qwen2.5-0.5b-instruct`.
+8 requests, 3 repeats, 4 workers in dataflow mode. The workflow asserts
+`uname -m == aarch64` and **fails the job** if it is not, so this evidence
+cannot be produced off-target.
 
-## The Baseline
+| Runtime configuration | Sequential | Dataflow | Wall-time | tokens/s |
+|---|---|---|---|---|
+| Ollama, `OLLAMA_NUM_PARALLEL=4` | 9.68s | 10.13s | **0.955×** | 52.9 → 50.5 |
+| Ollama, `num_thread=1` | 21.99s | 20.50s | **1.072×** | 22.1 → 25.0 |
+| **llama-server `--parallel 4 -t 1`** | 23.26s | 16.88s | **1.378×** | 22.0 → **30.3** |
 
-Run the **same workload** through the **same runtime** sequentially:
+Evidence: [`evidence/arm64_ci/`](evidence/arm64_ci/) · Rendered:
+[`results/arm64/`](results/arm64/)
 
+**The first configuration — the obvious one — came back at 0.955×. Slower.**
+Ollama's CPU build does not overlap requests on this hardware; llama.cpp's
+`--parallel` slots do. We did not know that going in. The harness is what told
+us, and a harness that only ever confirms the hypothesis is not an instrument.
+
+---
+
+## The finding worth your attention
+
+Given that evidence, the scheduler deployed **Ollama** — *not* the configuration
+with the best speedup.
+
+| | mean latency | tokens/s | wall-time speedup |
+|---|---|---|---|
+| Ollama | **4,415 ms** | **50.5** | 0.955× |
+| llama-server | 8,441 ms | 30.3 | **1.378×** |
+
+llama-server wins wall-clock throughput on a batch of 8 and loses everything a
+serving tier is judged on: it nearly doubles per-request latency and gives up
+40% of token throughput. Wall-time speedup is a batch metric. Latency is a user
+metric. **They disagree here, and the disagreement is the product.**
+
+Nobody hand-tuned that decision. `armopt.scheduler` scores min-max normalized
+latency, cost and throughput from the measured evidence files — see
+[`evidence/arm64_ci/selection.json`](evidence/arm64_ci/selection.json).
+
+This is why the harness exists. Shipping the 1.378× number alone would have
+been a defensible-looking mistake.
+
+---
+
+## How it works
+
+```text
+workload → runtime adapter → { sequential | dataflow } → metrics
+                                                            ↓
+                                          signed evidence (SHA256)
+                                                            ↓
+                                              verify → scheduler → decision
 ```
-request 1 → init → infer → cleanup
-request 2 → init → infer → cleanup
-...
-request N → init → infer → cleanup
-```
 
-## The Optimization
+Three components, no fakes:
 
-Reuse a **persistent session / worker pool** across requests:
+1. **Harness** (`armopt.runner`) — identical workload run two ways: sequential
+   (fresh context per request) vs dataflow (pooled workers). Same adapter, same
+   output contract, therefore comparable metrics.
+2. **Signed evidence** (`armopt.evidence`) — inputs, outputs, platform string
+   and a content hash per run. `verify_evidence()` recomputes it and fails on
+   any post-hoc edit. One canonical hashing rule, because a signing scheme with
+   three copies is three schemes.
+3. **Scheduler** (`armopt.scheduler`) — min-max normalized scoring over measured
+   evidence, not hand-tuned weights.
 
-```
-request 1 → init ──────→
-request 2 → infer ─────→
-request 3 → infer ─────→  REUSABLE SESSION
-...                   │
-request N → infer ─────→
-```
+**Runtime is a plugin, not a dependency.** `HttpAdapter` covers Ollama and
+llama-server; `JsonlAdapter` covers anything that speaks JSONL over stdio.
 
-**Hypothesis**: Amortizing reusable runtime state reduces per-request overhead under repeated inference workloads.
+---
 
-## Why Arm
-
-Arm64 cores are increasingly the deployment target for edge AI. But most optimization guides assume x86 or GPU. This harness measures **on Arm64 hardware** whether the execution strategy actually helps — no guessing.
-
-## Measurement
-
-```
-WORKLOAD
-    │
-    ↓
-RUNTIME ADAPTER          (Ollama / llama-server / any JSONL runtime)
-    │
-    ├─────────────────────→
-    │                     │
-SEQUENTIAL            DATAFLOW
-(w=1, fresh)          (w=N, pooled)
-    │                     │
-    └───────────┴─────────┘
-                ↓
-           METRICS
-                │
-                ↓
-           EVIDENCE (SHA256-signed)
-                │
-                ↓
-         SCHEDULER DECISION
-```
-
-Same workload → same adapter → same output contract → **comparable metrics**.
-
-## Quick Start
+## Quick start
 
 ```powershell
 python -m venv .venv
@@ -74,26 +96,20 @@ python -m pip install -e .
 python -m armopt
 ```
 
-Menu:
 ```
-Arm AI Optimization
---------------------
-[1] Run benchmark
-[2] Compare providers
-[3] Run scheduler
-[4] Verify evidence
-[5] Show latest decision
-[6] Run full pipeline
-[7] View system status
-[0] Exit
+[1] Run benchmark          [5] Show latest decision
+[2] Compare providers      [6] Run full pipeline
+[3] Run scheduler          [7] View system status
+[4] Verify evidence        [0] Exit
 ```
 
-Scriptable CLIs (what CI uses):
+Scriptable, which is what CI uses:
+
 ```bash
-# Smoke test (no AI runtime needed)
+# Smoke test, no AI runtime required
 python -m armopt.cli --demo --requests 32 --workers 4 --mode both
 
-# Real runtime benchmark
+# Against a real runtime
 python -m armopt.cli --adapter http --http-url http://localhost:11434 \
   --http-model qwen2.5:0.5b --workload-file workloads/demo.json \
   --workers 4 --repeats 3 --mode both --evidence evidence/run.json
@@ -104,208 +120,107 @@ python -m armopt.select --evidence evidence/a.json --evidence evidence/b.json
 
 ---
 
-## Current Status
+## Resilience: surviving pathological workloads
 
-| Capability | Status | Evidence |
-|------------|--------|----------|
-| Demo harness | ✓ Working | `python -m armopt.cli --demo` |
-| Deterministic tests | ✓ 24 passing | `python -m pytest tests/ -q` |
-| External runtime adapters | ✓ Ollama, llama-server, JSONL | `src/armopt/*_adapter.py` |
-| Arm64 benchmark CI | ✓ Measured on `ubuntu-24.04-arm` | `.github/workflows/arm64-benchmark.yml` |
-| Signed evidence + verification | ✓ SHA256 per run | `evidence/*.json`, `verify_evidence()` |
-| Scheduler (min-max normalized) | ✓ With regression test | `armopt.scheduler`, `test_scheduler.py` |
-| **Rust native engine** | ✓ Same contract, native ARM64 | `rust/armopt-native/` |
-| **COBOL batch engine** | ✓ Contract compatibility demo | `rust/cobol-adapter/` |
-| **WASM target** | ✓ Compiles to wasm32-wasip1 | `cargo build --target wasm32-wasip1` |
-| **Malbolge stress test** | ✓ 4/4 harness survival | `scripts/malbolge_stress.py` |
-| Cross-engine conformance | ✓ Python ↔ Rust contract match | `scripts/cross_engine_test.py` |
+A harness for other people's runtimes has to survive input designed to break
+it. Robustness here is measured, not asserted — we run **Malbolge**, a language
+engineered to be maximally hostile: self-modifying code, ternary arithmetic,
+memory that re-encrypts itself after every instruction, and no guarantee of
+termination.
 
----
+| Stress case | Outcome | Steps | Harness survived |
+|---|---|---|---|
+| `hello_world` | HALTED | 48 | ✓ |
+| `infinite_loop_stress` | ILLEGAL:12 | 1 | ✓ |
+| `self_modifying_stress` | HALTED | 48 | ✓ |
+| `large_output` | ILLEGAL:69 | 2 | ✓ |
 
-## Engine Matrix
+**4/4 survival.** Non-termination and illegal instructions are caught and
+reported as contract outcomes — never as a crashed measurement run. Evidence:
+[`evidence/stress_malbolge_stress.json`](evidence/stress_malbolge_stress.json).
 
-| Engine | Type | Target | Contract | Stress Test |
-|--------|------|--------|----------|-------------|
-| ✓ Python | Inference | x86/ARM64 | ✓ baseline/dataflow | — |
-| ✓ Rust | Inference | ARM64 native | ✓ baseline/dataflow | — |
-| ✓ COBOL | Batch | x86 (GnuCOBOL) | ✓ batch contract | — |
-| ✓ WASM | Portable | wasm32-wasip1 | ✓ baseline/dataflow | — |
-| ✓ Malbolge | Stress | x86 | — | ✓ 4/4 survival |
+The same contract discipline is what lets four unrelated engines report into
+one comparison:
 
-**Badge bar**: `[ARM64] [Python] [Rust] [COBOL] [WASM] [Malbolge Stress]`
+| Engine | Type | Target | Contract |
+|---|---|---|---|
+| Python | Inference | x86 / Arm64 | baseline + dataflow |
+| Rust | Inference | Arm64 native | baseline + dataflow |
+| COBOL | Batch | x86 (GnuCOBOL) | batch |
+| WASM | Portable | `wasm32-wasip1` | baseline + dataflow |
 
----
-
-## Why This Is an Optimization
-
-```
-                    SAME WORKLOAD
-                         │
-                         ↓
-                 RUNTIME ADAPTER
-                         │
-              ├──────────┼──────────┤
-              │                     │
-         SEQUENTIAL              DATAFLOW
-              │                     │
-         fresh context         reusable pool
-         per request           across requests
-              │                     │
-              └──────────┴──────────┘
-                         │
-                    SAME OUTPUT CONTRACT
-                         │
-                         ↓
-                  COMPARABLE METRICS
-```
-
-**Optimization hypothesis**: Amortizing reusable runtime state reduces per-request overhead under repeated inference workloads.
+`scripts/cross_engine_test.py` validates Python ↔ Rust field-for-field, and
+**refuses** to compare either against COBOL: different contract types are
+skipped, not forced into a shared ranking. Declining an invalid comparison is a
+feature.
 
 ---
 
-## Metrics
-
-We measure **per-mode** and compute the delta:
-
-| Metric | Sequential | Dataflow | Delta |
-|--------|------------|----------|-------|
-| `total_time` | 166 ms | 40 ms | **4.2× faster** |
-| `p50_latency` | 1.6 ms | 1.5 ms | similar |
-| `p95_latency` | 1.7 ms | 1.6 ms | similar |
-| `throughput` | 2.57 req/s | 4.45 req/s | **1.73× higher** |
-| `tokens/sec` | 1,800 | 7,600 | **4.2× higher** |
-
-*Example from demo adapter (100 requests, 4 workers). Real runtime numbers in `results/arm64/`.*
-
----
-
-## Reproducible Results
-
-```
-results/
-├── arm64/
-    ├── sequential.json      # baseline evidence
-    ├── dataflow.json        # optimized evidence
-    ├── comparison.json      # delta + metrics + platform
-    ├── environment.json     # host, runtime, model, workload
-    └── README.md            # human summary
-```
-
-### `comparison.json` Schema
-
-```json
-{
-  "platform": { "architecture": "aarch64", "os": "Ubuntu 24.04", "cpu": "Neoverse-N1 (4 vCPU)" },
-  "runtime": { "name": "llama-server", "config": "--parallel 4 -t 1" },
-  "model": { "name": "qwen2.5-0.5b-instruct-q4_k_m", "format": "GGUF" },
-  "workload": { "requests": 100, "workers": 4, "repeats": 3, "mode": "both" },
-  "metrics": {
-    "baseline": { "total_seconds": 45.2, "p50_ms": 381, "p95_ms": 512, "throughput_rps": 2.57 },
-    "optimized": { "total_seconds": 26.1, "p50_ms": 219, "p95_ms": 301, "throughput_rps": 4.45 },
-    "speedup": { "wall_time": 1.73, "p50_latency": 1.74, "p95_latency": 1.70, "throughput": 1.73 }
-  },
-  "evidence": { "baseline_sha256": "...", "optimized_sha256": "..." }
-}
-```
-
-**Judge can verify**: Open `results/arm64/comparison.json` → check SHA256s match files in `evidence/` → numbers are reproducible.
-
----
-
-## What We Actually Found (Arm64 CI)
-
-| Step | Config | Speedup | Status |
-|------|--------|---------|--------|
-| 1 | Ollama default | **0.983×** | Not a speedup |
-| 2 | Ollama `num_thread=1` | 1.091× | Wall time 2× slower |
-| 3 | Ollama `OLLAMA_NUM_PARALLEL=4` | 0.944× | Ruled out |
-| 4 | Ollama both combined | 1.089× | Same as step 2 |
-| 5 | **llama-server `--parallel 4 -t 1`** | **1.39×** | **Real parallelism** |
-
-Evidence trail: `evidence/arm64_ci_step{1..5}_*.json`
-
-**Root cause**: Ollama's CPU build doesn't overlap requests on this hardware. llama.cpp's `--parallel` slots do. The harness measured both under identical conditions and let the scheduler decide from evidence.
-
----
-
-## Architecture
-
-Three components, zero fakes:
-
-1. **Harness** (`armopt.runner`) — identical workload × {sequential, dataflow} → latency, throughput, wall time
-2. **Signed Evidence** (`armopt.evidence`) — inputs, outputs, platform, SHA256 per run; `verify_evidence()` validates
-3. **Scheduler** (`armopt.scheduler`) — min-max normalized scoring from *measured* evidence, not hand-tuned weights
-
-```text
-workload → runtime adapter → { sequential | dataflow } → metrics → evidence → verify → scheduler → decision
-```
-
-**Adapters**: `HttpAdapter` (Ollama, llama-server), `JsonlAdapter` (stdin/stdout JSONL). Runtime is a plugin, not a dependency.
-
----
-
-## Stress Test: Malbolge
-
-Tests the evaluation harness robustness against a **pathological workload**:
-
-| Test | Status | Steps | Harness Survived |
-|------|--------|-------|------------------|
-| hello_world | HALTED | 48 | ✓ |
-| infinite_loop_stress | ILLEGAL:12 | 1 | ✓ |
-| self_modifying_stress | HALTED | 48 | ✓ |
-| large_output | ILLEGAL:69 | 2 | ✓ |
-
-**HARNESS SURVIVAL: 4/4 = 100%**
-
-The harness handles self-modifying code, ternary arithmetic, auto-encrypting memory, and non-termination gracefully.
-
----
-
-## Cross-Engine Conformance
-
-```
-python vs rust: Contract fields match OK
-python vs cobol: Different contract types (skipping comparison)
-rust vs cobol: Different contract types (skipping comparison)
-```
-
-| Engine | Contract Type | Baseline | Dataflow | Speedup |
-|--------|---------------|----------|----------|---------|
-| Python | Inference | 166 ms | 40 ms | 4.2× |
-| Rust | Inference | 1.56 s | 391 ms | 4.0× |
-| COBOL | Batch | 54 ms | N/A | 1.0× |
-
-**Key insight**: Contract identical for inference engines (Python ↔ Rust), COBOL validated separately as batch engine.
-
----
-
-## Limitations (Honest)
-
-- **CPU only** — no GPU/NPU delegate measured
-- **Small model** — qwen2.5:0.5b; larger models untested
-- **Small workload** — 8-100 requests; not sustained production traffic
-- **Cost = 0.0** — all runtimes local/free; cost dimension exercised by unit test only
-- **COBOL binary** — requires GnuCOBOL runtime; adapter uses Python reference as fallback
-- **WASM** — single-threaded (WASI threads not stable); dataflow runs sequentially
-- **Malbolge** — stress test only, not a production runtime
-
----
-
-## Tests
+## Verify it yourself
 
 ```bash
-python -m pytest tests/ -q
-# 24 tests: contracts, runner, adapters, scheduler (normalization bug), evidence, menu
+# Check any evidence file's signature
+python -c "from pathlib import Path; from armopt.evidence import verify_evidence; \
+print(verify_evidence(Path('evidence/arm64_ci/arm64_llama_server.json')))"
 
-python scripts/cross_engine_test.py
-# Cross-engine conformance: Python ↔ Rust contract match, COBOL validated separately
-
-python scripts/malbolge_stress.py
-# Malbolge stress test: 4/4 harness survival
+# Rebuild results/arm64/ from the signed evidence
+python scripts/build_arm64_results.py
 ```
+
+`build_arm64_results.py` re-verifies every signature and **aborts** if a file's
+platform string is not `aarch64`. That guard exists because this repo did once
+ship `results/arm64/` files whose contents read `"architecture": "AMD64"` —
+generated by the demo script writing into the wrong directory. The
+demo generator now writes to [`results/demo/`](results/demo/), and Arm64
+results can only come from Arm64 evidence.
+
+Arm64 evidence is committed by the CI job itself, so it does not depend on
+artifacts that expire.
+
+---
+
+## Status
+
+| Capability | Status | Where |
+|---|---|---|
+| Arm64 benchmark CI | ✓ Measured on `ubuntu-24.04-arm` | `.github/workflows/arm64-benchmark.yml` |
+| Signed evidence + verification | ✓ SHA256, one canonical rule | `src/armopt/evidence.py` |
+| Scheduler from measured evidence | ✓ With regression test | `src/armopt/scheduler.py` |
+| Deterministic tests | ✓ 27 passing | `python -m pytest tests/ -q` |
+| Runtime adapters | ✓ Ollama, llama-server, JSONL | `src/armopt/*_adapter.py` |
+| Rust native engine | ✓ Same contract, native Arm64 | `rust/armopt-native/` |
+| COBOL batch engine | ✓ Contract compatibility | `rust/cobol-adapter/` |
+| WASM target | ✓ `wasm32-wasip1` | `cargo build --target wasm32-wasip1` |
+| Malbolge stress | ✓ 4/4 survival | `scripts/malbolge_stress.py` |
+
+```bash
+python -m pytest tests/ -q          # 27 tests
+python scripts/cross_engine_test.py # cross-engine conformance
+python scripts/malbolge_stress.py   # 4/4 harness survival
+```
+
+---
+
+## Limitations
+
+- **Small workload** — 8 requests × 3 repeats on Arm64 CI. Enough to rank
+  configurations, not enough to characterize sustained production traffic.
+- **Small model** — `qwen2.5-0.5b`. Larger models untested; the parallelism
+  story likely changes when weights stop fitting in cache.
+- **CPU only** — no GPU or NPU delegate measured.
+- **Latency under dataflow rises** — concurrent requests share the same cores.
+  This is reported in every result, not smoothed over.
+- **Cost dimension is inert** — every runtime measured is local and free, so
+  `cost_per_1k_tokens` is 0.0 throughout and exercised only by unit test.
+- **Cross-engine numbers are x86** — the Python/Rust/COBOL conformance run in
+  `scripts/cross_engine_test.py` validates *contract compatibility* on a
+  developer machine. It is not an Arm64 performance claim.
+- **WASM is single-threaded** — WASI threads are not stable, so its dataflow
+  mode runs sequentially.
+- **Malbolge is a stress fixture**, not a production runtime.
 
 ---
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).

@@ -12,6 +12,10 @@ jobs:
     # "real Arm64 host" the harness's own README asks for.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
+    # Needed by the final step, which commits the measured evidence back so
+    # the repo stops depending on artifacts that expire.
+    permissions:
+      contents: write
     steps:
       - name: Confirm we are actually on Arm64
         run: |
@@ -133,6 +137,60 @@ jobs:
             --evidence evidence/arm64_naive.json \
             --evidence evidence/arm64_llama_server.json \
             | tee evidence/selection.json
+
+      - name: Record what hardware actually produced these numbers
+        # Without this the repo can only claim "Arm64" in the abstract. The
+        # README should be able to name the silicon, and name it from a file
+        # the runner wrote, not from a vendor spec sheet someone looked up.
+        run: |
+          python - <<'PY'
+          import json, os, platform, subprocess
+          def read(path):
+              try:
+                  return open(path).read()
+              except OSError:
+                  return ""
+          cpuinfo = read("/proc/cpuinfo")
+          model = ""
+          for line in cpuinfo.splitlines():
+              if line.startswith(("model name", "Model name", "CPU part")):
+                  model = line.split(":", 1)[1].strip()
+                  break
+          json.dump({
+              "uname_m": platform.machine(),
+              "platform": platform.platform(),
+              "nproc": os.cpu_count(),
+              "cpu_model_line": model,
+              "lscpu": subprocess.run(["lscpu"], capture_output=True, text=True).stdout,
+              "runner_image": os.environ.get("ImageOS", "unknown"),
+          }, open("evidence/host.json", "w"), indent=2)
+          PY
+          cat evidence/host.json
+
+      - name: Commit the measured Arm64 evidence back into the repo
+        # Artifacts expire; a hackathon judge clones the repo. The evidence the
+        # README cites has to live in the tree, and it has to arrive here only
+        # from a job that already proved it is running on aarch64.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p evidence/arm64_ci
+          cp evidence/arm64_naive.json \
+             evidence/arm64_capped.json \
+             evidence/arm64_llama_server.json \
+             evidence/selection.json \
+             evidence/host.json \
+             evidence/arm64_ci/
+          python scripts/build_arm64_results.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/arm64_ci results/arm64
+          if git diff --staged --quiet; then
+            echo "Arm64 evidence unchanged, nothing to commit"
+            exit 0
+          fi
+          # [skip ci] keeps this push from re-triggering the workflow.
+          git commit -m "ci: refresh Arm64 evidence measured on $(uname -m) runner [skip ci]"
+          git push
 
       - name: Publish results to the job summary
         run: |

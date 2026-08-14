@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the harness
+        run: python -m pip install -e ".[test]"
+
+      - name: Unit tests
+        run: python -m pytest tests/ -q
+
+      - name: Malbolge stress -- the harness must survive pathological input
+        # Pure Python, no external toolchain: safe to gate every push on.
+        run: python scripts/malbolge_stress.py
+
+      - name: Arm64 results must stay derivable from their evidence
+        # Catches the failure mode this repo already hit once: results/arm64/
+        # drifting away from the signed evidence it claims to summarize, or
+        # being regenerated from a non-aarch64 machine. The build script
+        # verifies every signature and aborts on a non-aarch64 platform
+        # string, so a clean re-run proving no diff is the real assertion.
+        run: |
+          python scripts/build_arm64_results.py
+          if ! git diff --quiet results/arm64; then
+            echo "::error::results/arm64 does not match evidence/arm64_ci -- run scripts/build_arm64_results.py and commit"
+            git diff results/arm64
+            exit 1
+          fi
+          echo "results/arm64 matches its signed evidence"

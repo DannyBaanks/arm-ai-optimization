@@ -82,12 +82,12 @@
     <div>
       <span class="badge badge-arm">AMD64</span>
       <span class="badge badge-demo">demo-adapter</span>
-      <span class="badge badge-speedup">1.66× wall-time speedup</span>
+      <span class="badge badge-speedup">3.69× wall-time speedup</span>
     </div>
   </header>
 
   <div class="speedup-hero">
-    <div class="speedup-value">1.66×</div>
+    <div class="speedup-value">3.69×</div>
     <div class="speedup-label">Dataflow vs Sequential — Wall Time</div>
   </div>
 
@@ -130,32 +130,32 @@
         <tr>
           <td>Total Wall Time</td>
           <td>0.15s</td>
-          <td>0.09s</td>
-          <td class="speedup-cell">1.66×</td>
+          <td>0.04s</td>
+          <td class="speedup-cell">3.69×</td>
         </tr>
         <tr>
           <td>p50 Latency</td>
           <td>1.5ms</td>
-          <td>3.2ms</td>
-          <td class="speedup-cell">0.46×</td>
+          <td>1.5ms</td>
+          <td class="speedup-cell">1.00×</td>
         </tr>
         <tr>
           <td>p95 Latency</td>
-          <td>1.6ms</td>
           <td>1.7ms</td>
-          <td class="speedup-cell">0.96×</td>
+          <td>1.6ms</td>
+          <td class="speedup-cell">1.03×</td>
         </tr>
         <tr>
           <td>Throughput</td>
-          <td>662.4 req/s</td>
-          <td>1100.7 req/s</td>
-          <td class="speedup-cell">1.66×</td>
+          <td>657.1 req/s</td>
+          <td>2426.1 req/s</td>
+          <td class="speedup-cell">3.69×</td>
         </tr>
         <tr>
           <td>Tokens/sec</td>
-          <td>1987</td>
-          <td>3302</td>
-          <td class="speedup-cell">1.66×</td>
+          <td>1971</td>
+          <td>7278</td>
+          <td class="speedup-cell">3.69×</td>
         </tr>
       </tbody>
     </table>
@@ -171,8 +171,8 @@
       <div class="bar-row">
         <span class="bar-label">Dataflow</span>
         <div class="bar-track">
-          <div class="bar-fill bar-fill-optimized" style="width: 60.2%"></div>
-          <span class="bar-value">0.09s</span>
+          <div class="bar-fill bar-fill-optimized" style="width: 27.1%"></div>
+          <span class="bar-value">0.04s</span>
         </div>
       </div>
     </div>
@@ -184,29 +184,29 @@
       <div class="bar-row">
         <span class="bar-label">p50 Baseline</span>
         <div class="bar-track">
-          <div class="bar-fill bar-fill-baseline" style="width: 46.4%"></div>
+          <div class="bar-fill bar-fill-baseline" style="width: 100.0%"></div>
           <span class="bar-value">1.5ms</span>
         </div>
       </div>
       <div class="bar-row">
         <span class="bar-label">p50 Optimized</span>
         <div class="bar-track">
-          <div class="bar-fill bar-fill-optimized" style="width: 100.0%"></div>
-          <span class="bar-value">3.2ms</span>
+          <div class="bar-fill bar-fill-optimized" style="width: 99.9%"></div>
+          <span class="bar-value">1.5ms</span>
         </div>
       </div>
       <div class="bar-row">
         <span class="bar-label">p95 Baseline</span>
         <div class="bar-track">
-          <div class="bar-fill bar-fill-baseline" style="width: 96.2%"></div>
-          <span class="bar-value">1.6ms</span>
+          <div class="bar-fill bar-fill-baseline" style="width: 100.0%"></div>
+          <span class="bar-value">1.7ms</span>
         </div>
       </div>
       <div class="bar-row">
         <span class="bar-label">p95 Optimized</span>
         <div class="bar-track">
-          <div class="bar-fill bar-fill-optimized" style="width: 100.0%"></div>
-          <span class="bar-value">1.7ms</span>
+          <div class="bar-fill bar-fill-optimized" style="width: 97.1%"></div>
+          <span class="bar-value">1.6ms</span>
         </div>
       </div>
     </div>
@@ -217,19 +217,19 @@
     <table class="evidence-table">
       <thead><tr><th>File</th><th>SHA256</th></tr></thead>
       <tbody>
-        <tr><td>arm64_sequential.json</td><td><code>2ff4557a0a836ae9343c628947d632042aa366c4dff3b9d758a6b12972dad774</code></td></tr>
-        <tr><td>arm64_dataflow.json</td><td><code>8e74dafeb3d384b6fa71ad5b6dea07aa033a1f8f0770ff57483039e51f8a4267</code></td></tr>
+        <tr><td>demo_sequential.json</td><td><code>bb44bc85725d47764a40c0c8f059f24c659dde2901b72e73f26ca70c42f50678</code></td></tr>
+        <tr><td>demo_dataflow.json</td><td><code>b1fb64e7679a5edb6b5abd9a276b2fc36e9917ff4954a74d491d734f19a6c32d</code></td></tr>
       </tbody>
     </table>
     <div class="verify-box">
       Verify locally:<br>
-      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/arm64_sequential.json')))"</code><br>
-      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/arm64_dataflow.json')))"</code>
+      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/demo/demo_sequential.json')))"</code><br>
+      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/demo/demo_dataflow.json')))"</code>
     </div>
   </section>
 
   <footer class="footer">
-    Generated 2026-08-13 23:32 UTC · <a href="https://github.com/DannyBaanks/arm-ai-optimization">github.com/DannyBaanks/arm-ai-optimization</a> · Evidence before narrative
+    Generated 2026-08-14 09:24 UTC · <a href="https://github.com/DannyBaanks/arm-ai-optimization">github.com/DannyBaanks/arm-ai-optimization</a> · Evidence before narrative
   </footer>
 </div>
 </body>

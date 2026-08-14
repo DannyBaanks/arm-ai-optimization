@@ -21,9 +21,22 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Evidence (local)
-evidence/
-results/
+# Evidence and results.
+#
+# Scratch runs from local experimentation stay out of the tree. The evidence
+# the README cites is the product and has to survive a clone -- this file
+# previously ignored evidence/ wholesale, so a repo whose README promised
+# "backed by committed, hash-signed JSON under evidence/" shipped that
+# directory empty. Anything referenced by README.md or rendered into results/
+# must be un-ignored here.
+evidence/*
+!evidence/arm64_ci/
+!evidence/stress_malbolge_stress.json
+!evidence/cross_python_cross_engine_test.json
+!evidence/cross_cobol_cross_engine_test.json
+results/*
+!results/arm64/
+!results/demo/
 
 # Rust
 Cargo.lock

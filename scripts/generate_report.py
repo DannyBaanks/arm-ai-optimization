@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Generate static HTML report from comparison.json.
-No framework — pure HTML/CSS/JS embedded.
+Generate static HTML report from the demo comparison.json.
+No framework -- pure HTML/CSS/JS embedded.
+
+Reads the ``armopt.comparison/1`` document written by
+``generate_comparison.py`` (in-memory demo adapter). Arm64 results use the
+``armopt.comparison/2`` shape and are rendered as Markdown by
+``build_arm64_results.py`` instead.
 """
 from __future__ import annotations
 import json
@@ -9,8 +14,8 @@ from pathlib import Path
 from datetime import datetime
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-COMPARISON_PATH = REPO_ROOT / "results" / "arm64" / "comparison.json"
-OUTPUT_PATH = REPO_ROOT / "results" / "arm64" / "report.html"
+COMPARISON_PATH = REPO_ROOT / "results" / "demo" / "comparison.json"
+OUTPUT_PATH = REPO_ROOT / "results" / "demo" / "report.html"
 
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -238,8 +243,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </table>
     <div class="verify-box">
       Verify locally:<br>
-      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/{baseline_file}')))"</code><br>
-      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/{optimized_file}')))"</code>
+      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/demo/{baseline_file}')))"</code><br>
+      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/demo/{optimized_file}')))"</code>
     </div>
   </section>
 

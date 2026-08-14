@@ -1,0 +1,20 @@
+{
+  "schema": "armopt.evidence/1",
+  "created_at": "2026-08-14T09:27:26.368943+00:00",
+  "workload_id": "cross_engine_test",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.4",
+  "results": {
+    "n_in": 1000,
+    "accept": 77,
+    "adjust": 383,
+    "reject": 540,
+    "delta": 16418740769,
+    "check1": 1,
+    "check2": 1,
+    "wall_ms": 57,
+    "engine": "cobol-python-reference"
+  },
+  "adapter": "cobol-batch",
+  "evidence_sha256": "9f788c3ba4da1bc203ad4094771e14d165badbab07913e0d13b9e9da3452c415"
+}
