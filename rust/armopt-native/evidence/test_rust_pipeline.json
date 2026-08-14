@@ -1,0 +1,37 @@
+{
+  "schema": "armopt.evidence/1",
+  "created_at": "2026-08-13T23:55:46.131730500+00:00",
+  "workload_id": "test_rust",
+  "adapter": "demo-adapter",
+  "platform": "windows-x86_64",
+  "python": "rust/0.1.0",
+  "results": {
+    "baseline": {
+      "adapter": "demo-adapter",
+      "mode": "sequential",
+      "requests": 100,
+      "workers": 1,
+      "wall_ms": 1550,
+      "mean_latency_ms": 15.01,
+      "p95_latency_ms": 16.0,
+      "output_tokens": 300,
+      "tokens_per_second": 193.5061652999326,
+      "repeats": 3
+    },
+    "dataflow": {
+      "adapter": "demo-adapter",
+      "mode": "dataflow",
+      "requests": 100,
+      "workers": 4,
+      "wall_ms": 389,
+      "mean_latency_ms": 15.04,
+      "p95_latency_ms": 16.0,
+      "output_tokens": 300,
+      "tokens_per_second": 769.4843044439001,
+      "repeats": 3
+    },
+    "speedup_wall": 3.9845758354755785,
+    "repeats": 3
+  },
+  "evidence_sha256": "ddf348fb354d13397f1486064f4cef661ee88bee1b7ebc9aa0eaaef444145d47"
+}

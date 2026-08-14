@@ -1,0 +1,20 @@
+{
+  "schema": "armopt.evidence/1",
+  "created_at": "2026-08-13T23:32:00.858591+00:00",
+  "workload_id": "inline-demo",
+  "adapter": "demo-adapter",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.4",
+  "results": {
+    "adapter": "demo-adapter",
+    "mode": "sequential",
+    "requests": 100,
+    "workers": 1,
+    "wall_ms": 150.972,
+    "mean_latency_ms": 1.507,
+    "p95_latency_ms": 1.628,
+    "output_tokens": 300,
+    "tokens_per_second": 1987.126
+  },
+  "evidence_sha256": "79b3944971cafc6ed27be8861a4a0949149a2149ae330fb900f3f9eed202f9e8"
+}

@@ -1,0 +1,15 @@
+A|D       |ACCEPTED|OK      |3                   |649297              |0
+A|D       |ADJUSTED|FEE     |380                 |16790171965         |167901710
+A|D       |ADJUSTED|FROZEN  |3                   |148954441           |0
+A|D       |REJECTED|CLOSED  |6                   |251446895           |0
+A|W       |ACCEPTED|OK      |53                  |353133224           |0
+A|W       |REJECTED|LIMIT   |309                 |17272095086         |0
+A|W       |REJECTED|CLOSED  |2                   |133863027           |0
+A|T       |ACCEPTED|OK      |21                  |240618747           |0
+A|T       |REJECTED|LIMIT   |222                 |11912576085         |0
+A|T       |REJECTED|CLOSED  |1                   |1970920             |0
+C|ACCEPTED|OK      |21                  |240618747           |0
+R|L       433                 16561359136         161087317
+R|M       7                   336481575           3364815
+R|H       20                  635686963           3449578
+E|TOTALS|1000                77                  383                 540                 593751971           17180394450         167901710           16418740769         |1|1

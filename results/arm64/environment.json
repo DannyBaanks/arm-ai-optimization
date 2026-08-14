@@ -1,0 +1,24 @@
+{
+  "platform": {
+    "architecture": "AMD64",
+    "os": "Windows 11",
+    "cpu": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+    "python": "3.12.4"
+  },
+  "runtime": {
+    "name": "demo-adapter",
+    "version": "0.1.0",
+    "config": "in-memory demo (no external runtime)"
+  },
+  "model": {
+    "name": "demo-model",
+    "format": "in-memory"
+  },
+  "workload": {
+    "requests": 100,
+    "workers": 4,
+    "repeats": 3,
+    "mode": "both"
+  },
+  "generated_at": "2026-08-13T23:32:01.417279+00:00"
+}

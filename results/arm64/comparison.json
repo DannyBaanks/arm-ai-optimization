@@ -1,0 +1,56 @@
+{
+  "schema": "armopt.comparison/1",
+  "generated_at": "2026-08-13T23:32:01.417279+00:00",
+  "platform": {
+    "architecture": "AMD64",
+    "os": "Windows 11",
+    "cpu": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+    "python": "3.12.4"
+  },
+  "runtime": {
+    "name": "demo-adapter",
+    "version": "0.1.0",
+    "config": "in-memory demo (no external runtime)"
+  },
+  "model": {
+    "name": "demo-model",
+    "format": "in-memory"
+  },
+  "workload": {
+    "requests": 100,
+    "workers": 4,
+    "repeats": 3,
+    "mode": "both"
+  },
+  "metrics": {
+    "baseline": {
+      "total_seconds": 0.150972,
+      "p50_ms": 1.507,
+      "p95_ms": 1.628,
+      "throughput_rps": 662.3744800360332,
+      "tokens_per_second": 1987.126,
+      "output_tokens": 300
+    },
+    "optimized": {
+      "total_seconds": 0.090852,
+      "p50_ms": 3.246,
+      "p95_ms": 1.693,
+      "throughput_rps": 1100.6912340950116,
+      "tokens_per_second": 3302.066,
+      "output_tokens": 300
+    },
+    "speedup": {
+      "wall_time": 1.662,
+      "p50_latency": 0.464,
+      "p95_latency": 0.962,
+      "throughput": 1.662,
+      "tokens_per_second": 1.662
+    }
+  },
+  "evidence": {
+    "baseline_sha256": "2ff4557a0a836ae9343c628947d632042aa366c4dff3b9d758a6b12972dad774",
+    "optimized_sha256": "8e74dafeb3d384b6fa71ad5b6dea07aa033a1f8f0770ff57483039e51f8a4267",
+    "baseline_file": "arm64_sequential.json",
+    "optimized_file": "arm64_dataflow.json"
+  }
+}

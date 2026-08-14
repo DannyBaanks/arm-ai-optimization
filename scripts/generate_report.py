@@ -1,0 +1,330 @@
+#!/usr/bin/env python3
+"""
+Generate static HTML report from comparison.json.
+No framework — pure HTML/CSS/JS embedded.
+"""
+from __future__ import annotations
+import json
+from pathlib import Path
+from datetime import datetime
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+COMPARISON_PATH = REPO_ROOT / "results" / "arm64" / "comparison.json"
+OUTPUT_PATH = REPO_ROOT / "results" / "arm64" / "report.html"
+
+
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arm AI Optimization — Benchmark Report</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 2rem;
+  }}
+  .container {{ max-width: 900px; margin: 0 auto; }}
+  header {{ text-align: center; margin-bottom: 3rem; }}
+  h1 {{ font-size: 2.5rem; font-weight: 700; background: linear-gradient(90deg, #58a6ff, #a371f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }}
+  .subtitle {{ color: #8b949e; font-size: 1.1rem; }}
+  .badge {{ display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin: 0.25rem; }}
+  .badge-arm {{ background: #1f6feb; color: white; }}
+  .badge-demo {{ background: #238636; color: white; }}
+  .badge-speedup {{ background: #d29922; color: #0d1117; }}
+
+  .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }}
+  .card h2 {{ font-size: 1.25rem; margin-bottom: 1rem; color: #f0f6fc; border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; }}
+
+  .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }}
+  .metric {{ background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; text-align: center; }}
+  .metric-value {{ font-size: 2rem; font-weight: 700; color: #58a6ff; }}
+  .metric-label {{ font-size: 0.85rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }}
+  .metric-delta {{ font-size: 0.9rem; margin-top: 0.5rem; font-weight: 600; }}
+  .delta-positive {{ color: #3fb950; }}
+  .delta-negative {{ color: #f85149; }}
+  .delta-neutral {{ color: #a371f7; }}
+
+  .speedup-hero {{ text-align: center; padding: 2rem; background: linear-gradient(135deg, #1f6feb22, #a371f722); border-radius: 12px; margin: 1.5rem 0; border: 1px solid #30363d; }}
+  .speedup-value {{ font-size: 4rem; font-weight: 800; background: linear-gradient(90deg, #58a6ff, #a371f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }}
+  .speedup-label {{ color: #8b949e; margin-top: 0.5rem; }}
+
+  table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
+  th, td {{ padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #30363d; }}
+  th {{ color: #8b949e; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }}
+  td {{ color: #e6edf3; }}
+  tr:hover td {{ background: #161b22; }}
+  .speedup-cell {{ font-weight: 700; color: #d29922; }}
+
+  .bar-chart {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }}
+  .bar-row {{ display: flex; align-items: center; gap: 1rem; }}
+  .bar-label {{ width: 120px; font-size: 0.9rem; color: #e6edf3; }}
+  .bar-track {{ flex: 1; height: 24px; background: #0d1117; border-radius: 4px; overflow: hidden; border: 1px solid #30363d; position: relative; }}
+  .bar-fill {{ height: 100%; border-radius: 4px; transition: width 0.5s ease; }}
+  .bar-fill-baseline {{ background: linear-gradient(90deg, #58a6ff, #1f6feb); }}
+  .bar-fill-optimized {{ background: linear-gradient(90deg, #a371f7, #6e40c9); }}
+  .bar-value {{ position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 600; color: #fff; text-shadow: 0 0 2px #000; }}
+
+  .evidence-table {{ font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; }}
+  .evidence-table td:first-child {{ color: #8b949e; }}
+  .evidence-table code {{ background: #0d1117; padding: 0.15rem 0.4rem; border-radius: 4px; }}
+
+  .verify-box {{ background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; }}
+  .verify-box code {{ color: #a371f7; }}
+
+  .footer {{ text-align: center; margin-top: 3rem; color: #484f58; font-size: 0.85rem; }}
+  .footer a {{ color: #58a6ff; text-decoration: none; }}
+  .footer a:hover {{ text-decoration: underline; }}
+
+  @media (prefers-color-scheme: light) {{
+    body {{ background: #ffffff; color: #24292f; }}
+    .card {{ background: #f6f8fa; border-color: #d0d7de; }}
+    .metric {{ background: #ffffff; border-color: #d0d7de; }}
+    .verify-box {{ background: #f6f8fa; border-color: #d0d7de; }}
+  }}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Arm AI Optimization</h1>
+    <p class="subtitle">Benchmark Report — Execution Strategy Comparison</p>
+    <div>
+      <span class="badge badge-arm">{arch}</span>
+      <span class="badge badge-demo">{runtime_name}</span>
+      <span class="badge badge-speedup">{speedup_wall:.2f}× wall-time speedup</span>
+    </div>
+  </header>
+
+  <div class="speedup-hero">
+    <div class="speedup-value">{speedup_wall:.2f}×</div>
+    <div class="speedup-label">Dataflow vs Sequential — Wall Time</div>
+  </div>
+
+  <section class="card">
+    <h2>Platform</h2>
+    <div class="grid">
+      <div class="metric"><div class="metric-value">{arch}</div><div class="metric-label">Architecture</div></div>
+      <div class="metric"><div class="metric-value">{os}</div><div class="metric-label">OS</div></div>
+      <div class="metric"><div class="metric-value">{cpu}</div><div class="metric-label">CPU</div></div>
+      <div class="metric"><div class="metric-value">{python}</div><div class="metric-label">Python</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Runtime & Model</h2>
+    <div class="grid">
+      <div class="metric"><div class="metric-value">{runtime_name}</div><div class="metric-label">Runtime</div></div>
+      <div class="metric"><div class="metric-value">{runtime_config}</div><div class="metric-label">Config</div></div>
+      <div class="metric"><div class="metric-value">{model_name}</div><div class="metric-label">Model</div></div>
+      <div class="metric"><div class="metric-value">{model_format}</div><div class="metric-label">Format</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Workload</h2>
+    <div class="grid">
+      <div class="metric"><div class="metric-value">{requests}</div><div class="metric-label">Requests</div></div>
+      <div class="metric"><div class="metric-value">{workers}</div><div class="metric-label">Workers (dataflow)</div></div>
+      <div class="metric"><div class="metric-value">{repeats}</div><div class="metric-label">Repeats</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Metrics</h2>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Baseline (Sequential)</th><th>Optimized (Dataflow)</th><th>Speedup</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Wall Time</td>
+          <td>{baseline_total:.2f}s</td>
+          <td>{optimized_total:.2f}s</td>
+          <td class="speedup-cell">{speedup_wall:.2f}×</td>
+        </tr>
+        <tr>
+          <td>p50 Latency</td>
+          <td>{baseline_p50:.1f}ms</td>
+          <td>{optimized_p50:.1f}ms</td>
+          <td class="speedup-cell">{speedup_p50:.2f}×</td>
+        </tr>
+        <tr>
+          <td>p95 Latency</td>
+          <td>{baseline_p95:.1f}ms</td>
+          <td>{optimized_p95:.1f}ms</td>
+          <td class="speedup-cell">{speedup_p95:.2f}×</td>
+        </tr>
+        <tr>
+          <td>Throughput</td>
+          <td>{baseline_throughput:.1f} req/s</td>
+          <td>{optimized_throughput:.1f} req/s</td>
+          <td class="speedup-cell">{speedup_throughput:.2f}×</td>
+        </tr>
+        <tr>
+          <td>Tokens/sec</td>
+          <td>{baseline_tokens:.0f}</td>
+          <td>{optimized_tokens:.0f}</td>
+          <td class="speedup-cell">{speedup_tokens:.2f}×</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="bar-chart">
+      <div class="bar-row">
+        <span class="bar-label">Sequential</span>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-baseline" style="width: {baseline_pct:.1f}%"></div>
+          <span class="bar-value">{baseline_total:.2f}s</span>
+        </div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Dataflow</span>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-optimized" style="width: {optimized_pct:.1f}%"></div>
+          <span class="bar-value">{optimized_total:.2f}s</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Latency Distribution</h2>
+    <div class="bar-chart">
+      <div class="bar-row">
+        <span class="bar-label">p50 Baseline</span>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-baseline" style="width: {baseline_p50_pct:.1f}%"></div>
+          <span class="bar-value">{baseline_p50:.1f}ms</span>
+        </div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">p50 Optimized</span>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-optimized" style="width: {optimized_p50_pct:.1f}%"></div>
+          <span class="bar-value">{optimized_p50:.1f}ms</span>
+        </div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">p95 Baseline</span>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-baseline" style="width: {baseline_p95_pct:.1f}%"></div>
+          <span class="bar-value">{baseline_p95:.1f}ms</span>
+        </div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">p95 Optimized</span>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-optimized" style="width: {optimized_p95_pct:.1f}%"></div>
+          <span class="bar-value">{optimized_p95:.1f}ms</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Evidence Integrity</h2>
+    <table class="evidence-table">
+      <thead><tr><th>File</th><th>SHA256</th></tr></thead>
+      <tbody>
+        <tr><td>{baseline_file}</td><td><code>{baseline_sha256}</code></td></tr>
+        <tr><td>{optimized_file}</td><td><code>{optimized_sha256}</code></td></tr>
+      </tbody>
+    </table>
+    <div class="verify-box">
+      Verify locally:<br>
+      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/{baseline_file}')))"</code><br>
+      <code>python -c "from pathlib import Path; from armopt.evidence import verify_evidence; print(verify_evidence(Path('results/arm64/{optimized_file}')))"</code>
+    </div>
+  </section>
+
+  <footer class="footer">
+    Generated {generated_at} · <a href="https://github.com/DannyBaanks/arm-ai-optimization">github.com/DannyBaanks/arm-ai-optimization</a> · Evidence before narrative
+  </footer>
+</div>
+</body>
+</html>
+"""
+
+
+def load_comparison() -> dict:
+    return json.loads(COMPARISON_PATH.read_text())
+
+
+def fmt_ms(ms: float) -> str:
+    return f"{ms:.1f}"
+
+
+def fmt_sec(s: float) -> str:
+    return f"{s:.2f}"
+
+
+def main():
+    if not COMPARISON_PATH.exists():
+        print(f"Comparison not found: {COMPARISON_PATH}")
+        return
+
+    c = load_comparison()
+    m = c["metrics"]
+    s = m["speedup"]
+    b = m["baseline"]
+    o = m["optimized"]
+    p = c["platform"]
+    e = c["evidence"]
+
+    # Calculate percentages for bars (relative to max)
+    max_total = max(b["total_seconds"], o["total_seconds"])
+    max_p50 = max(b["p50_ms"], o["p50_ms"])
+    max_p95 = max(b["p95_ms"], o["p95_ms"])
+
+    html = HTML_TEMPLATE.format(
+        arch=p["architecture"],
+        os=p["os"],
+        cpu=p["cpu"],
+        python=p["python"],
+        runtime_name=c["runtime"]["name"],
+        runtime_config=c["runtime"]["config"],
+        model_name=c["model"]["name"],
+        model_format=c["model"]["format"],
+        requests=c["workload"]["requests"],
+        workers=c["workload"]["workers"],
+        repeats=c["workload"]["repeats"],
+        baseline_total=b["total_seconds"],
+        optimized_total=o["total_seconds"],
+        baseline_p50=b["p50_ms"],
+        optimized_p50=o["p50_ms"],
+        baseline_p95=b["p95_ms"],
+        optimized_p95=o["p95_ms"],
+        baseline_throughput=b["throughput_rps"],
+        optimized_throughput=o["throughput_rps"],
+        baseline_tokens=b["tokens_per_second"],
+        optimized_tokens=o["tokens_per_second"],
+        speedup_wall=s["wall_time"],
+        speedup_p50=s["p50_latency"],
+        speedup_p95=s["p95_latency"],
+        speedup_throughput=s["throughput"],
+        speedup_tokens=s["tokens_per_second"],
+        baseline_pct=(b["total_seconds"] / max_total) * 100,
+        optimized_pct=(o["total_seconds"] / max_total) * 100,
+        baseline_p50_pct=(b["p50_ms"] / max_p50) * 100,
+        optimized_p50_pct=(o["p50_ms"] / max_p50) * 100,
+        baseline_p95_pct=(b["p95_ms"] / max_p95) * 100,
+        optimized_p95_pct=(o["p95_ms"] / max_p95) * 100,
+        baseline_file=e["baseline_file"],
+        optimized_file=e["optimized_file"],
+        baseline_sha256=e["baseline_sha256"],
+        optimized_sha256=e["optimized_sha256"],
+        generated_at=datetime.fromisoformat(c["generated_at"].replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M UTC"),
+    )
+
+    OUTPUT_PATH.write_text(html, encoding="utf-8")
+    print(f"Report written to: {OUTPUT_PATH}")
+
+
+if __name__ == "__main__":
+    main()
