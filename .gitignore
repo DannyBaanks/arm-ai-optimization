@@ -1,8 +1,28 @@
-.venv/
+# Build artifacts
+target/
+*.wasm
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.venv/
 .pytest_cache/
-*.tmp
-*.log
-evidence/*.json
-*.egg-info/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Evidence (local)
+evidence/
+results/
+
+# Rust
+Cargo.lock
