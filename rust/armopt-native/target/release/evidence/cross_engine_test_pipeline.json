@@ -1,6 +1,6 @@
 {
   "schema": "armopt.evidence/1",
-  "created_at": "2026-08-14T00:38:34.093800700+00:00",
+  "created_at": "2026-08-14T09:27:20.273444100+00:00",
   "workload_id": "cross_engine_test",
   "adapter": "demo-adapter",
   "platform": "windows-x86_64",
@@ -11,11 +11,11 @@
       "mode": "sequential",
       "requests": 100,
       "workers": 1,
-      "wall_ms": 1560,
-      "mean_latency_ms": 15.14,
+      "wall_ms": 1554,
+      "mean_latency_ms": 15.1,
       "p95_latency_ms": 16.0,
       "output_tokens": 300,
-      "tokens_per_second": 192.1952580817145,
+      "tokens_per_second": 193.0451246839851,
       "repeats": 3
     },
     "dataflow": {
@@ -23,15 +23,15 @@
       "mode": "dataflow",
       "requests": 100,
       "workers": 4,
-      "wall_ms": 388,
-      "mean_latency_ms": 15.0,
+      "wall_ms": 389,
+      "mean_latency_ms": 15.04,
       "p95_latency_ms": 16.0,
       "output_tokens": 300,
-      "tokens_per_second": 771.8538849721592,
+      "tokens_per_second": 770.4387777245604,
       "repeats": 3
     },
-    "speedup_wall": 4.020618556701031,
+    "speedup_wall": 3.994858611825193,
     "repeats": 3
   },
-  "evidence_sha256": "a18560cabb5811776edf7057d9a8a0bc3778505be2b94a80b0023cc6da9862a9"
+  "evidence_sha256": "df5a5b7fc5338970f9173837cda7f6b200af0a2d82345df5d6a926a4f97729df"
 }

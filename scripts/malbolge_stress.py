@@ -150,30 +150,28 @@ def run_stress_suite() -> Dict[str, Any]:
 
 
 def write_evidence(results: Dict[str, Any], workload_id: str):
-    """Write stress test evidence."""
-    import hashlib
-    from datetime import datetime, timezone
-    
-    evidence = {
-        "schema": "armopt.stress/1",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "workload_id": workload_id,
-        "stress_type": "malbolge",
-        "results": results,
-    }
-    
-    # Canonicalize and hash
-    canonical = json.dumps(evidence, sort_keys=True).encode()
-    evidence_sha256 = hashlib.sha256(canonical).hexdigest()
-    evidence["evidence_sha256"] = evidence_sha256
-    
+    """Write stress test evidence through the canonical signer.
+
+    This used to hash with `json.dumps(..., sort_keys=True)` -- no
+    `separators` -- which is a different byte stream from the one
+    `armopt.evidence` uses. The file was written with a hash that
+    `verify_evidence()` could never reproduce, so the Malbolge survival
+    evidence failed its own verification. One signer, one scheme.
+    """
+    from armopt.evidence import write_evidence as write_signed_evidence
+
     evidence_file = EVIDENCE_DIR / f"stress_{workload_id}.json"
-    with open(evidence_file, "w") as f:
-        json.dump(evidence, f, indent=2)
-    
+    write_signed_evidence(
+        evidence_file,
+        results=results,
+        workload_id=workload_id,
+        schema="armopt.stress/1",
+        extra={"stress_type": "malbolge"},
+    )
+
     print(f"\nEvidence written to: {evidence_file}")
-    print(f"SHA256: {evidence_sha256}")
-    
+    print(f"SHA256: {json.loads(evidence_file.read_text())['evidence_sha256']}")
+
     return evidence_file
 
 

@@ -131,28 +131,25 @@ def main():
     adapter = CobolAdapter(use_native=args.native)
     result = adapter.run(args.data_dir, args.out_dir)
     
-    # Add metadata for evidence
-    evidence = {
-        "schema": "armopt.evidence/1",
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "workload_id": args.workload_id,
-        "adapter": "cobol-batch",
-        "platform": "Windows",
-        "results": result,
-        "evidence_sha256": ""
-    }
-    
-    # Compute SHA256
-    import hashlib
-    canonical = json.dumps(evidence, sort_keys=True).encode()
-    evidence["evidence_sha256"] = hashlib.sha256(canonical).hexdigest()
-    
     # Print result
     print(json.dumps(result, indent=2))
-    
+
     if args.evidence:
-        with open(args.evidence, "w") as f:
-            json.dump(evidence, f, indent=2)
+        # Signed through armopt.evidence rather than re-derived here. The
+        # previous local version had two defects at once: it hashed without
+        # `separators=(",", ":")`, and it hashed the payload with an empty
+        # "evidence_sha256" placeholder still inside it -- so the recorded
+        # hash matched neither scheme and verify_evidence() always rejected
+        # this file. Platform is also read from the host now instead of being
+        # hardcoded to "Windows", which was simply false off Windows.
+        from armopt.evidence import write_evidence as write_signed_evidence
+
+        write_signed_evidence(
+            args.evidence,
+            results=result,
+            workload_id=args.workload_id,
+            adapter="cobol-batch",
+        )
         print(f"Evidence written to {args.evidence}")
 
 
