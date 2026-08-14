@@ -27,11 +27,11 @@ request N → init → infer → cleanup
 Reuse a **persistent session / worker pool** across requests:
 
 ```
-request 1 → init ──────��
-request 2 → infer ─────��
-request 3 → infer ─────��  REUSABLE SESSION
+request 1 → init ──────→
+request 2 → infer ─────→
+request 3 → infer ─────→  REUSABLE SESSION
 ...                   │
-request N → infer ─────��
+request N → infer ─────→
 ```
 
 **Hypothesis**: Amortizing reusable runtime state reduces per-request overhead under repeated inference workloads.
@@ -45,22 +45,22 @@ Arm64 cores are increasingly the deployment target for edge AI. But most optimiz
 ```
 WORKLOAD
     │
-    ��
+    ↓
 RUNTIME ADAPTER          (Ollama / llama-server / any JSONL runtime)
     │
-    ├─────────────────────��
-    ��                     ��
+    ├─────────────────────→
+    │                     │
 SEQUENTIAL            DATAFLOW
 (w=1, fresh)          (w=N, pooled)
     │                     │
-    └───────────��─────────��
-                ��
+    └───────────┴─────────┘
+                ↓
            METRICS
                 │
-                ��
+                ↓
            EVIDENCE (SHA256-signed)
                 │
-                ��
+                ↓
          SCHEDULER DECISION
 ```
 
@@ -108,17 +108,17 @@ python -m armopt.select --evidence evidence/a.json --evidence evidence/b.json
 
 | Capability | Status | Evidence |
 |------------|--------|----------|
-| Demo harness | �� Working | `python -m armopt.cli --demo` |
-| Deterministic tests | �� 24 passing | `python -m pytest tests/ -q` |
-| External runtime adapters | �� Ollama, llama-server, JSONL | `src/armopt/*_adapter.py` |
-| Arm64 benchmark CI | �� Measured on `ubuntu-24.04-arm` | `.github/workflows/arm64-benchmark.yml` |
-| Signed evidence + verification | �� SHA256 per run | `evidence/*.json`, `verify_evidence()` |
-| Scheduler (min-max normalized) | �� With regression test | `armopt.scheduler`, `test_scheduler.py` |
-| **Rust native engine** | �� Same contract, native ARM64 | `rust/armopt-native/` |
-| **COBOL batch engine** | �� Contract compatibility demo | `rust/cobol-adapter/` |
-| **WASM target** | �� Compiles to wasm32-wasip1 | `cargo build --target wasm32-wasip1` |
-| **Malbolge stress test** | �� 4/4 harness survival | `scripts/malbolge_stress.py` |
-| Cross-engine conformance | �� Python ↔ Rust contract match | `scripts/cross_engine_test.py` |
+| Demo harness | ✓ Working | `python -m armopt.cli --demo` |
+| Deterministic tests | ✓ 24 passing | `python -m pytest tests/ -q` |
+| External runtime adapters | ✓ Ollama, llama-server, JSONL | `src/armopt/*_adapter.py` |
+| Arm64 benchmark CI | ✓ Measured on `ubuntu-24.04-arm` | `.github/workflows/arm64-benchmark.yml` |
+| Signed evidence + verification | ✓ SHA256 per run | `evidence/*.json`, `verify_evidence()` |
+| Scheduler (min-max normalized) | ✓ With regression test | `armopt.scheduler`, `test_scheduler.py` |
+| **Rust native engine** | ✓ Same contract, native ARM64 | `rust/armopt-native/` |
+| **COBOL batch engine** | ✓ Contract compatibility demo | `rust/cobol-adapter/` |
+| **WASM target** | ✓ Compiles to wasm32-wasip1 | `cargo build --target wasm32-wasip1` |
+| **Malbolge stress test** | ✓ 4/4 harness survival | `scripts/malbolge_stress.py` |
+| Cross-engine conformance | ✓ Python ↔ Rust contract match | `scripts/cross_engine_test.py` |
 
 ---
 
@@ -126,11 +126,11 @@ python -m armopt.select --evidence evidence/a.json --evidence evidence/b.json
 
 | Engine | Type | Target | Contract | Stress Test |
 |--------|------|--------|----------|-------------|
-| ��� Python | Inference | x86/ARM64 | �� baseline/dataflow | — |
-| ��� Rust | Inference | ARM64 native | �� baseline/dataflow | — |
-| ��� COBOL | Batch | x86 (GnuCOBOL) | �� batch contract | — |
-| ������ WASM | Portable | wasm32-wasip1 | �� baseline/dataflow | — |
-| ����� Malbolge | Stress | x86 | — | �� 4/4 survival |
+| ✓ Python | Inference | x86/ARM64 | ✓ baseline/dataflow | — |
+| ✓ Rust | Inference | ARM64 native | ✓ baseline/dataflow | — |
+| ✓ COBOL | Batch | x86 (GnuCOBOL) | ✓ batch contract | — |
+| ✓ WASM | Portable | wasm32-wasip1 | ✓ baseline/dataflow | — |
+| ✓ Malbolge | Stress | x86 | — | ✓ 4/4 survival |
 
 **Badge bar**: `[ARM64] [Python] [Rust] [COBOL] [WASM] [Malbolge Stress]`
 
@@ -141,21 +141,21 @@ python -m armopt.select --evidence evidence/a.json --evidence evidence/b.json
 ```
                     SAME WORKLOAD
                          │
-                         ��
+                         ↓
                  RUNTIME ADAPTER
                          │
-              ��──────────��──────────��
-              ��                     ��
+              ├──────────┼──────────┤
+              │                     │
          SEQUENTIAL              DATAFLOW
               │                     │
          fresh context         reusable pool
          per request           across requests
               │                     │
-              └──────────��──────────��
-                         ��
+              └──────────┴──────────┘
+                         │
                     SAME OUTPUT CONTRACT
                          │
-                         ��
+                         ↓
                   COMPARABLE METRICS
 ```
 
@@ -244,16 +244,16 @@ workload → runtime adapter → { sequential | dataflow } → metrics → evide
 
 ---
 
-## Stress Test: Malbolge �����
+## Stress Test: Malbolge
 
 Tests the evaluation harness robustness against a **pathological workload**:
 
 | Test | Status | Steps | Harness Survived |
 |------|--------|-------|------------------|
-| hello_world | HALTED | 48 | �� |
-| infinite_loop_stress | ILLEGAL:12 | 1 | �� |
-| self_modifying_stress | HALTED | 48 | �� |
-| large_output | ILLEGAL:69 | 2 | �� |
+| hello_world | HALTED | 48 | ✓ |
+| infinite_loop_stress | ILLEGAL:12 | 1 | ✓ |
+| self_modifying_stress | HALTED | 48 | ✓ |
+| large_output | ILLEGAL:69 | 2 | ✓ |
 
 **HARNESS SURVIVAL: 4/4 = 100%**
 
