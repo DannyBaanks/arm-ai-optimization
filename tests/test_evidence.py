@@ -51,6 +51,14 @@ class EvidenceTests(unittest.TestCase):
         "arm64_ci_selection_decision.json":
             "scheduler decision, not evidence -- armopt.select prints to stdout "
             "and CI redirects it to a file, so it never passes through a signer",
+        "selection.json":
+            "same scheduler decision, written by arm64-benchmark.yml with "
+            "`| tee evidence/selection.json`. A decision is not a measurement: "
+            "signing it would claim provenance the pipeline never established",
+        "host.json":
+            "platform description of the CI runner (lscpu, nproc, uname), "
+            "written by a json.dump inside arm64-benchmark.yml. It records "
+            "where the run happened, not what the run measured",
     }
 
     def test_evidence_directories_all_verify(self) -> None:
@@ -65,12 +73,21 @@ class EvidenceTests(unittest.TestCase):
         ``examples/evidence`` is the set a judge actually gets: ``evidence/``
         is gitignored as a local scratch directory, so testing only that one
         would check exactly the files nobody else can see.
+
+        The walk is RECURSIVE, and that is the whole point. The first version
+        of this guard used ``glob("*.json")``, which only sees the top level.
+        When CI later started committing ``evidence/arm64_ci/``, five files
+        landed one directory down -- two of them unsigned -- and this test kept
+        reporting green because it was not looking at them. A guard against
+        "passes without proving anything" that itself passes without proving
+        anything is worse than no guard: it buys false confidence. Use
+        ``rglob``; a new subdirectory must never be able to hide from it.
         """
         root = Path(__file__).resolve().parent.parent
         files = sorted(
             path
             for directory in ("evidence", "examples/evidence")
-            for path in (root / directory).glob("*.json")
+            for path in (root / directory).rglob("*.json")
         )
         self.assertTrue(files, "no evidence files found to verify")
 
