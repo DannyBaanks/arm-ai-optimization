@@ -16,21 +16,31 @@ and relabelled.
 
 ## What we measured on real Arm64
 
-GitHub-hosted `ubuntu-24.04-arm` runner. Model: `qwen2.5-0.5b-instruct`.
-8 requests, 3 repeats, 4 workers in dataflow mode. The workflow asserts
-`uname -m == aarch64` and **fails the job** if it is not, so this evidence
-cannot be produced off-target.
+<!-- ARM64_HOST:START -->
+GitHub-hosted `ubuntu-24.04-arm` runner: **Neoverse-N2**, 4 cores, `Linux-6.17.0-1022-azure-aarch64-with-glibc2.39`. Recorded by the runner itself in [`evidence/arm64_ci/host.json`](evidence/arm64_ci/host.json).
+<!-- ARM64_HOST:END -->
 
+Model: `qwen2.5-0.5b-instruct`. 8 requests, 3 repeats, 4 workers in dataflow
+mode. The workflow asserts `uname -m == aarch64` and **fails the job** if it is
+not, so this evidence cannot be produced off-target.
+
+<!-- ARM64_TABLE:START -->
 | Runtime configuration | Sequential | Dataflow | Wall-time | tokens/s |
 |---|---|---|---|---|
-| Ollama, `OLLAMA_NUM_PARALLEL=4` | 9.68s | 10.13s | **0.955×** | 52.9 → 50.5 |
-| Ollama, `num_thread=1` | 21.99s | 20.50s | **1.072×** | 22.1 → 25.0 |
-| **llama-server `--parallel 4 -t 1`** | 23.26s | 16.88s | **1.378×** | 22.0 → **30.3** |
+| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.09s | 10.35s | **0.975x** | 50.7 -> 49.5 |
+| Ollama, capped per-request threading (num_thread=1) | 22.54s | 20.68s | **1.09x** | 22.7 -> 24.8 |
+| **llama-server, --parallel 4 -t 1** | 23.32s | 17.02s | **1.37x** | 21.8 -> 30.1 |
+<!-- ARM64_TABLE:END -->
 
 Evidence: [`evidence/arm64_ci/`](evidence/arm64_ci/) · Rendered:
 [`results/arm64/`](results/arm64/)
 
-**The first configuration — the obvious one — came back at 0.955×. Slower.**
+Every measured number in this README is generated from that evidence by
+`scripts/build_arm64_results.py`, and CI fails if the two disagree. Nobody
+types a benchmark result into this file by hand -- that is how a repo ends up
+quoting four contradictory speedups.
+
+**The obvious configuration came back slower than running sequentially.**
 Ollama's CPU build does not overlap requests on this hardware; llama.cpp's
 `--parallel` slots do. We did not know that going in. The harness is what told
 us, and a harness that only ever confirms the hypothesis is not an instrument.
@@ -42,22 +52,24 @@ us, and a harness that only ever confirms the hypothesis is not an instrument.
 Given that evidence, the scheduler deployed **Ollama** — *not* the configuration
 with the best speedup.
 
+<!-- SCHEDULER_TABLE:START -->
 | | mean latency | tokens/s | wall-time speedup |
 |---|---|---|---|
-| Ollama | **4,415 ms** | **50.5** | 0.955× |
-| llama-server | 8,441 ms | 30.3 | **1.378×** |
+| **Ollama** (deployed) | **4,559 ms** | **49.5** | 0.975x |
+| llama-server | 8,506 ms | 30.1 | 1.37x |
+<!-- SCHEDULER_TABLE:END -->
 
 llama-server wins wall-clock throughput on a batch of 8 and loses everything a
 serving tier is judged on: it nearly doubles per-request latency and gives up
-40% of token throughput. Wall-time speedup is a batch metric. Latency is a user
-metric. **They disagree here, and the disagreement is the product.**
+roughly 40% of token throughput. Wall-time speedup is a batch metric. Latency
+is a user metric. **They disagree here, and the disagreement is the product.**
 
 Nobody hand-tuned that decision. `armopt.scheduler` scores min-max normalized
 latency, cost and throughput from the measured evidence files — see
 [`evidence/arm64_ci/selection.json`](evidence/arm64_ci/selection.json).
 
-This is why the harness exists. Shipping the 1.378× number alone would have
-been a defensible-looking mistake.
+This is why the harness exists. Shipping the best speedup number alone would
+have been a defensible-looking mistake.
 
 ---
 

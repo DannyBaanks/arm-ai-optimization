@@ -27,17 +27,21 @@ jobs:
         # Pure Python, no external toolchain: safe to gate every push on.
         run: python scripts/malbolge_stress.py
 
-      - name: Arm64 results must stay derivable from their evidence
-        # Catches the failure mode this repo already hit once: results/arm64/
-        # drifting away from the signed evidence it claims to summarize, or
+      - name: README and results must stay derivable from the evidence
+        # Catches the failure mode this repo already hit once: published numbers
+        # drifting away from the signed evidence they claim to summarize, or
         # being regenerated from a non-aarch64 machine. The build script
-        # verifies every signature and aborts on a non-aarch64 platform
-        # string, so a clean re-run proving no diff is the real assertion.
+        # verifies every signature and aborts on a non-aarch64 platform string,
+        # so a clean re-run proving no diff is the real assertion.
+        #
+        # The README is included deliberately. It is the document a judge reads,
+        # and it is the one that previously quoted four contradictory speedups
+        # and an evidence trail that did not exist.
         run: |
           python scripts/build_arm64_results.py
-          if ! git diff --quiet results/arm64; then
-            echo "::error::results/arm64 does not match evidence/arm64_ci -- run scripts/build_arm64_results.py and commit"
-            git diff results/arm64
+          if ! git diff --quiet results/arm64 README.md; then
+            echo "::error::published numbers disagree with evidence/arm64_ci -- run scripts/build_arm64_results.py and commit"
+            git diff results/arm64 README.md
             exit 1
           fi
-          echo "results/arm64 matches its signed evidence"
+          echo "README and results/arm64 match their signed evidence"

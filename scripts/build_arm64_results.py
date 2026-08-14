@@ -69,6 +69,91 @@ def summarize(mode_block: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def replace_block(text: str, marker: str, body: str) -> str:
+    """Swap the contents between <!-- marker:START --> and <!-- marker:END -->."""
+    start, end = f"<!-- {marker}:START -->", f"<!-- {marker}:END -->"
+    head, _, rest = text.partition(start)
+    _, _, tail = rest.partition(end)
+    if not rest or not tail:
+        raise SystemExit(f"README.md is missing the {marker} markers")
+    return f"{head}{start}\n{body}\n{end}{tail}"
+
+
+def render_repo_readme(configurations, scheduler_decision, host) -> None:
+    """Regenerate the measured-numbers blocks of the top-level README.
+
+    The README is the document a judge actually reads, and re-measurement moves
+    every decimal in it. Hand-maintaining those tables is how a repo ends up
+    quoting four mutually contradictory speedups. So the prose is written to
+    survive re-measurement and the numbers are generated from the same evidence
+    that produced results/arm64/ -- narrative derived from evidence, which is
+    the claim this project makes about itself.
+    """
+    best = max(configurations, key=lambda c: c["speedup"]["wall_time"])
+    rows = "\n".join(
+        f"| {'**' + c['label'] + '**' if c is best else c['label']} | "
+        f"{c['baseline']['wall_ms'] / 1000:.2f}s | {c['dataflow']['wall_ms'] / 1000:.2f}s | "
+        f"**{c['speedup']['wall_time']}x** | "
+        f"{c['baseline']['tokens_per_second']:.1f} -> {c['dataflow']['tokens_per_second']:.1f} |"
+        for c in configurations
+    )
+    blocks = {"ARM64_TABLE": (
+        "| Runtime configuration | Sequential | Dataflow | Wall-time | tokens/s |\n"
+        "|---|---|---|---|---|\n" + rows
+    )}
+
+    if scheduler_decision:
+        by_adapter = {c["adapter"]: c for c in scheduler_decision["candidates"]}
+        # First match wins: two Ollama configurations share one adapter string,
+        # and the scheduler was handed the first (naive) one, not the capped
+        # variant. Overwriting here would credit Ollama with a speedup the
+        # scheduler never saw.
+        speedup_by_adapter: dict[str, float] = {}
+        for c in configurations:
+            speedup_by_adapter.setdefault(c["adapter"], c["speedup"]["wall_time"])
+        selected = scheduler_decision["selected"]
+        lines = []
+        for adapter, cand in by_adapter.items():
+            name = "Ollama" if ":ollama:" in adapter else "llama-server"
+            chosen = adapter == selected
+            speedup = speedup_by_adapter.get(adapter)
+            lines.append(
+                f"| {'**' + name + '** (deployed)' if chosen else name} | "
+                f"{'**' if chosen else ''}{cand['mean_latency_ms']:,.0f} ms{'**' if chosen else ''} | "
+                f"{'**' if chosen else ''}{cand['output_tokens_per_second']:.1f}{'**' if chosen else ''} | "
+                f"{speedup if speedup is not None else 'n/a'}x |"
+            )
+        blocks["SCHEDULER_TABLE"] = (
+            "| | mean latency | tokens/s | wall-time speedup |\n"
+            "|---|---|---|---|\n" + "\n".join(lines)
+        )
+
+    if host:
+        lscpu = host.get("lscpu", "")
+        model = next(
+            (l.split(":", 1)[1].strip() for l in lscpu.splitlines()
+             if l.startswith("Model name:")),
+            "unknown",
+        )
+        blocks["ARM64_HOST"] = (
+            f"GitHub-hosted `ubuntu-24.04-arm` runner: **{model}**, "
+            f"{host.get('nproc', '?')} cores, `{host.get('platform', '')}`. "
+            f"Recorded by the runner itself in "
+            f"[`evidence/arm64_ci/host.json`](evidence/arm64_ci/host.json)."
+        )
+
+    # The Devpost copy carries the same tables; a submission quoting different
+    # numbers than the repo it links to is the same failure in a worse place.
+    for path in (REPO_ROOT / "README.md", REPO_ROOT / "docs" / "DEVPOST.md"):
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker, body in blocks.items():
+            if f"<!-- {marker}:START -->" in text:
+                text = replace_block(text, marker, body)
+        path.write_text(text, encoding="utf-8")
+
+
 def main() -> None:
     if not CI_EVIDENCE_DIR.is_dir():
         raise SystemExit(f"no Arm64 CI evidence at {CI_EVIDENCE_DIR}")
@@ -244,6 +329,8 @@ python scripts/build_arm64_results.py
 ```
 """
     (RESULTS_DIR / "README.md").write_text(summary, encoding="utf-8")
+
+    render_repo_readme(configurations, scheduler_decision, host)
 
     print(f"Wrote {RESULTS_DIR / 'comparison.json'}")
     print(f"Wrote {RESULTS_DIR / 'README.md'}")

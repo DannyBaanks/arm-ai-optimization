@@ -28,8 +28,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 EVIDENCE_DIR = REPO_ROOT / "evidence"
 EVIDENCE_DIR.mkdir(exist_ok=True)
 
-# Malbolge interpreter from bridge_core (separate repo location)
-MALBOLGE_INTERPRETER = Path(r"C:\Development\ISyCo\bridge_core\runtimes\windows\malbolge\engine\bootstrap\malbolge_interpreter.py")
+# Vendored under scripts/vendor/ so this runs from a clean clone. It used to
+# point at an absolute path inside another checkout on the author's machine,
+# so the "4/4 harness survival" the README advertises died with
+# FileNotFoundError for everyone else, CI included.
+MALBOLGE_INTERPRETER = REPO_ROOT / "scripts" / "vendor" / "malbolge_interpreter.py"
 
 # Test programs
 HELLO_WORLD = "(=<`#9]~6ZY327Uv4-QsqpMn&+Ij\"'E%e{Ab~w=_:]Kw%o44Uqp0/Q?xNvL:`H%c#DD2^WV>gY;dts76qKJImZkj"

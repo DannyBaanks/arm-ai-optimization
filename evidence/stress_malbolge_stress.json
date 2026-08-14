@@ -1,6 +1,6 @@
 {
   "schema": "armopt.stress/1",
-  "created_at": "2026-08-14T09:26:34.889550+00:00",
+  "created_at": "2026-08-14T13:57:45.220231+00:00",
   "workload_id": "malbolge_stress",
   "platform": "Windows-11-10.0.26200-SP0",
   "python": "3.12.4",
@@ -15,7 +15,7 @@
         "steps": 48,
         "output": "Hello, world.",
         "output_len": 13,
-        "execution_time_ms": 62.8662999952212,
+        "execution_time_ms": 66.97449999046512,
         "harness_survived": true
       },
       "infinite_loop_stress": {
@@ -26,7 +26,7 @@
         "steps": 1,
         "output": "",
         "output_len": 0,
-        "execution_time_ms": 58.102300004975405,
+        "execution_time_ms": 61.784600009559654,
         "harness_survived": true
       },
       "self_modifying_stress": {
@@ -37,7 +37,7 @@
         "steps": 48,
         "output": "Hello, world.",
         "output_len": 13,
-        "execution_time_ms": 60.16609999642242,
+        "execution_time_ms": 55.63760000222828,
         "harness_survived": true
       },
       "large_output": {
@@ -48,7 +48,7 @@
         "steps": 2,
         "output": "",
         "output_len": 0,
-        "execution_time_ms": 84.10680000088178,
+        "execution_time_ms": 62.64489999739453,
         "harness_survived": true
       }
     },
@@ -59,5 +59,5 @@
     }
   },
   "stress_type": "malbolge",
-  "evidence_sha256": "512d90536b9a122dff621146795a3dd275d563f324f1839d5dd67695ba8ac6bd"
+  "evidence_sha256": "736d4a8740fe2472995c48411dcc76c065db9fa7c30c4fe7aafee938a43c2033"
 }

@@ -183,7 +183,10 @@ jobs:
           python scripts/build_arm64_results.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence/arm64_ci results/arm64
+          # README included: build_arm64_results.py regenerates its measured
+          # tables from this same evidence, so refreshing one without the other
+          # is exactly the drift ci.yml fails on.
+          git add evidence/arm64_ci results/arm64 README.md
           if git diff --staged --quiet; then
             echo "Arm64 evidence unchanged, nothing to commit"
             exit 0
