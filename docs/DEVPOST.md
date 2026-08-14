@@ -24,9 +24,9 @@ Model `qwen2.5-0.5b-instruct`. 8 requests, 3 repeats, 4 workers.
 <!-- ARM64_TABLE:START -->
 | Runtime configuration | Sequential | Dataflow | Wall-time | tokens/s |
 |---|---|---|---|---|
-| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.09s | 10.35s | **0.975x** | 50.7 -> 49.5 |
-| Ollama, capped per-request threading (num_thread=1) | 22.54s | 20.68s | **1.09x** | 22.7 -> 24.8 |
-| **llama-server, --parallel 4 -t 1** | 23.32s | 17.02s | **1.37x** | 21.8 -> 30.1 |
+| Ollama, default per-request threading (OLLAMA_NUM_PARALLEL=4) | 10.01s | 9.84s | **1.018x** | 51.1 -> 52.0 |
+| Ollama, capped per-request threading (num_thread=1) | 22.05s | 20.20s | **1.091x** | 23.2 -> 25.3 |
+| **llama-server, --parallel 4 -t 1** | 22.86s | 16.94s | **1.35x** | 22.4 -> 30.2 |
 <!-- ARM64_TABLE:END -->
 
 The workflow asserts `uname -m == aarch64` and fails the job otherwise. This
@@ -104,8 +104,8 @@ committed results drift from the evidence they claim to summarize.
 <!-- SCHEDULER_TABLE:START -->
 | | mean latency | tokens/s | wall-time speedup |
 |---|---|---|---|
-| **Ollama** (deployed) | **4,559 ms** | **49.5** | 0.975x |
-| llama-server | 8,506 ms | 30.1 | 1.37x |
+| **Ollama** (deployed) | **4,318 ms** | **52.0** | 1.018x |
+| llama-server | 8,468 ms | 30.2 | 1.35x |
 <!-- SCHEDULER_TABLE:END -->
 
 llama-server wins wall-clock throughput on a batch and loses everything a

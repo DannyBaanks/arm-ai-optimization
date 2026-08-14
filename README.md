@@ -40,10 +40,13 @@ Every measured number in this README is generated from that evidence by
 types a benchmark result into this file by hand -- that is how a repo ends up
 quoting four contradictory speedups.
 
-**The obvious configuration came back slower than running sequentially.**
-Ollama's CPU build does not overlap requests on this hardware; llama.cpp's
-`--parallel` slots do. We did not know that going in. The harness is what told
-us, and a harness that only ever confirms the hypothesis is not an instrument.
+**The obvious configuration buys nothing.** Across repeated CI runs, Ollama
+with `OLLAMA_NUM_PARALLEL=4` lands on either side of 1.0x -- 0.955x, 0.975x,
+1.018x -- which is the signature of no real concurrency, not of a small win.
+Its CPU build does not overlap requests on this hardware; llama.cpp's
+`--parallel` slots do, consistently. We did not know that going in. The harness
+is what told us, and a harness that only ever confirms the hypothesis is not an
+instrument.
 
 ---
 
