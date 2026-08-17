@@ -1,6 +1,6 @@
 {
   "schema": "armopt.evidence/1",
-  "created_at": "2026-08-14T18:58:23.600935+00:00",
+  "created_at": "2026-08-17T07:19:24.896005+00:00",
   "workload_id": "demo-arm64-ci-parallel4-default-threads",
   "platform": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
   "python": "3.12.13",
@@ -10,26 +10,26 @@
       "mode": "sequential",
       "requests": 8,
       "workers": 1,
-      "wall_ms": 10599.846,
-      "mean_latency_ms": 1324.977,
-      "p95_latency_ms": 1604.435,
-      "output_tokens": 512,
-      "tokens_per_second": 48.303
+      "wall_ms": 8297.963,
+      "mean_latency_ms": 1037.242,
+      "p95_latency_ms": 1092.899,
+      "output_tokens": 498,
+      "tokens_per_second": 61.702
     },
     "dataflow": {
       "adapter": "http:ollama:qwen2.5:0.5b",
       "mode": "dataflow",
       "requests": 8,
       "workers": 4,
-      "wall_ms": 11025.6,
-      "mean_latency_ms": 4827.266,
-      "p95_latency_ms": 6956.203,
+      "wall_ms": 7733.204,
+      "mean_latency_ms": 3249.528,
+      "p95_latency_ms": 4237.861,
       "output_tokens": 512,
-      "tokens_per_second": 46.437
+      "tokens_per_second": 66.208
     },
-    "speedup_wall": 0.961,
+    "speedup_wall": 1.073,
     "repeats": 3
   },
   "adapter": "http:ollama:qwen2.5:0.5b",
-  "evidence_sha256": "380df1f9a3d1aa17f218cbf907a962a3f4a5305de08626efdc454f6d0353df17"
+  "evidence_sha256": "08b99b9666183f60df6f30f43c7a7570f65e0d7606cbd5b8b1797c35cf8787d0"
 }
